@@ -49,6 +49,11 @@ export const dataProvider = {
     return Promise.resolve(local.createCampaign(input));
   },
 
+  deleteCampaign(campaignId: string, creatorId: string) {
+    if (isSupabaseMode()) return remote.deleteCampaign(campaignId, creatorId);
+    return Promise.resolve(local.deleteCampaign(campaignId, creatorId));
+  },
+
   updateSettings(patch: Partial<Settings>) {
     if (isSupabaseMode()) {
       return remote.updateSettings(patch);

@@ -263,6 +263,21 @@ export async function createCampaign(input: any) {
   return campaign;
 }
 
+export async function deleteCampaign(campaignId: string, creatorId: string) {
+  const sb = requireSupabase();
+  const { data, error } = await sb.rpc("delete_campaign_and_refund", {
+    p_campaign_id: campaignId,
+    p_creator_id: creatorId,
+  });
+  if (error) throw error;
+  await loadDB();
+  const row = Array.isArray(data) ? data[0] : data;
+  return {
+    campaign: row,
+    refundedCoins: Number(row?.refunded_coins || 0),
+  };
+}
+
 export async function qualify(
   campaignId: string,
   userId: string

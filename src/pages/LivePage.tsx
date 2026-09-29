@@ -192,7 +192,15 @@ export default function LivePage(){
      </div>
 
      <div className={`live-status ${state==="PLAYING"?"on":""}`}>
-       ● {state==="ENDED"?"OFFLINE":"LIVE NOW"}
+       ● {state === "PLAYING"
+         ? "PLAYING"
+         : state === "BUFFERING"
+         ? "BUFFERING"
+         : state === "PAUSED"
+         ? "PAUSED"
+         : state === "ENDED"
+         ? "OFFLINE"
+         : "READY"}
      </div>
    </div>
 

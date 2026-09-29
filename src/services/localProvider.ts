@@ -258,6 +258,39 @@ export function createCampaign(input: any) {
   return campaign;
 }
 
+export function deleteCampaign(campaignId: string, creatorId: string) {
+  const db = getDB();
+  const campaign = db.campaigns.find((c) => c.id === campaignId);
+  if (!campaign) throw new Error("Campaign not found.");
+  if (campaign.creatorId !== creatorId) throw new Error("Unauthorized.");
+  if (!["active", "paused", "pending"].includes(String(campaign.status))) {
+    throw new Error("This campaign can no longer be deleted.");
+  }
+
+  const remainingUsers = Math.max(0, Number(campaign.targetViews || 0) - Number(campaign.currentViews || 0));
+  const refundableCoins = Math.max(0, remainingUsers * Number(campaign.coinRewardPerUser || 0));
+  const wallet = db.wallets[creatorId] || { coins: 0, earnings: 0 };
+  wallet.coins = Number(wallet.coins || 0) + refundableCoins;
+  db.wallets[creatorId] = wallet;
+
+  campaign.status = "partial_completed";
+
+  if (refundableCoins > 0) {
+    addWalletTransaction(creatorId, {
+      id: crypto.randomUUID(),
+      type: "refund",
+      coins: refundableCoins,
+      balanceAfter: wallet.coins,
+      description: `Unused campaign balance refunded: ${campaign.title}`,
+      referenceId: campaign.id,
+      createdAt: new Date().toISOString(),
+    });
+  }
+
+  saveDB(db);
+  return { campaign, refundedCoins: refundableCoins };
+}
+
 export function qualify(campaignId: string, userId: string) {
   const db = getDB();
 

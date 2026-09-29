@@ -3,9 +3,12 @@ import Layout from "@/components/Layout";
 import { Link } from "react-router-dom";
 import { useAuth } from "@/context/AuthContext";
 import { useData } from "@/context/DataContext";
-import { ArrowRight, Megaphone, Plus, Target, Users } from "lucide-react";
+import { ArrowRight, Megaphone, Plus, Target, Users, Trash2 } from "lucide-react";
 
 function CampaignCard({ campaign, content }: any) {
+  const data = useData();
+  const [deleting, setDeleting] = useState(false);
+  const [deleteMessage, setDeleteMessage] = useState("");
   const pct = campaign.targetViews
     ? Math.min(100, (campaign.currentViews / campaign.targetViews) * 100)
     : 0;
@@ -27,7 +30,7 @@ function CampaignCard({ campaign, content }: any) {
         </span>
 
         <span className={`status ${campaign.status}`}>
-          {String(campaign.status).replace("_", " ").toUpperCase()}
+          {String(campaign.status).replaceAll("_", " ").toUpperCase()}
         </span>
       </div>
 
@@ -122,6 +125,38 @@ function CampaignCard({ campaign, content }: any) {
         Created{" "}
         {new Date(campaign.createdAt).toLocaleString()}
       </small>
+
+      {campaign.status === "active" || campaign.status === "paused" || campaign.status === "pending" ? (
+        <div className="campaign-delete-row">
+          <button
+            type="button"
+            className="campaign-delete-btn"
+            disabled={deleting}
+            onClick={async () => {
+              const ok = window.confirm(
+                "Delete this campaign? Unused viewer-reward coins will be returned to your wallet. The platform margin will not be refunded."
+              );
+              if (!ok) return;
+              setDeleting(true);
+              setDeleteMessage("");
+              try {
+                const result = await data.deleteCampaign(campaign.id);
+                setDeleteMessage(
+                  `${Math.round(Number(result?.refundedCoins || 0)).toLocaleString()} unused coins returned. Campaign marked PARTIAL COMPLETED.`
+                );
+              } catch (e: any) {
+                setDeleteMessage(e?.message || "Campaign could not be deleted.");
+              } finally {
+                setDeleting(false);
+              }
+            }}
+          >
+            <Trash2 size={14} />
+            {deleting ? "DELETING..." : "DELETE CAMPAIGN"}
+          </button>
+          {deleteMessage && <span className="campaign-delete-message">{deleteMessage}</span>}
+        </div>
+      ) : null}
     </div>
   );
 }
@@ -350,6 +385,10 @@ const PAGE_CSS = String.raw`
   background: #e33;
 }
 
+.campaign-delete-row{display:flex;align-items:center;gap:9px;flex-wrap:wrap;margin-top:12px;padding-top:11px;border-top:1px solid #f0f0f0}
+.campaign-delete-btn{height:34px;display:inline-flex;align-items:center;justify-content:center;gap:6px;padding:0 11px;border:1px solid #ffd2d2;border-radius:8px;background:#fff5f5;color:#e11;font-size:9px;font-weight:950;cursor:pointer}
+.campaign-delete-btn:disabled{opacity:.55;cursor:not-allowed}
+.campaign-delete-message{font-size:9px;font-weight:800;color:#168447}
 .empty-card{
   padding: 30px 15px;
   text-align: center;

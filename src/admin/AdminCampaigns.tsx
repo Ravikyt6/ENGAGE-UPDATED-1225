@@ -17,6 +17,7 @@ const STATUS_LABELS: Record<string, string> = {
   completed: "COMPLETED",
   cancelled: "CANCELLED",
   rejected: "REJECTED",
+  partial_completed: "PARTIAL COMPLETED",
 };
 
 export default function AdminCampaigns() {
@@ -107,6 +108,7 @@ export default function AdminCampaigns() {
             <option value="completed">Completed</option>
             <option value="cancelled">Cancelled</option>
             <option value="rejected">Rejected</option>
+            <option value="partial_completed">Partial Completed</option>
           </select>
         </div>
       </div>
@@ -169,7 +171,7 @@ const CAMPAIGN_CSS = String.raw`
 .campaign-admin-title-row{display:flex;gap:12px;align-items:center;justify-content:space-between;}
 .campaign-admin-title-row h2{margin:0;font-size:18px;color:#171717;line-height:1.25;}
 .campaign-status{font-size:11px;font-weight:800;border-radius:20px;padding:6px 10px;white-space:nowrap;}
-.campaign-status-active{background:#e8f8ec;color:#16833b;}.campaign-status-paused{background:#fff3d7;color:#9b6500;}.campaign-status-pending{background:#eef2ff;color:#4857a6;}.campaign-status-completed{background:#e9f4ff;color:#1269a8;}.campaign-status-cancelled,.campaign-status-rejected{background:#ffe9e9;color:#c40000;}.campaign-status-draft{background:#f1f1f1;color:#666;}
+.campaign-status-active{background:#e8f8ec;color:#16833b;}.campaign-status-paused{background:#fff3d7;color:#9b6500;}.campaign-status-pending{background:#eef2ff;color:#4857a6;}.campaign-status-completed{background:#e9f4ff;color:#1269a8;}.campaign-status-cancelled,.campaign-status-rejected{background:#ffe9e9;color:#c40000;}.campaign-status-partial_completed{background:#fff4e6;color:#a85a00;}.campaign-status-draft{background:#f1f1f1;color:#666;}
 .campaign-admin-meta{display:flex;align-items:center;gap:10px;flex-wrap:wrap;color:#777;font-size:12px;margin-top:8px;}
 .campaign-type{font-weight:800;font-size:10px;padding:5px 8px;border-radius:5px;background:#f2f2f2;color:#333;}
 .campaign-type-shorts{background:#fff0f0;color:#d40000;}.campaign-type-live{background:#f0f4ff;color:#3158b7;}
