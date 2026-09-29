@@ -561,7 +561,6 @@ width:30%;
 .form-input,
 .settings-grid input,
 
-.demo-box b,
 
 .admin-side > a,
 
@@ -721,9 +720,6 @@ to{
   border-top: 1px solid #eee;
 }
 
-.login-card .demo-box{
-  margin-top: 15px;
-}
 
 .login-card .error-box{
   margin-top: 14px;

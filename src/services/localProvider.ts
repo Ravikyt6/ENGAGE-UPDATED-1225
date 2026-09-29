@@ -275,6 +275,13 @@ export function deleteCampaign(campaignId: string, creatorId: string) {
 
   campaign.status = "partial_completed";
 
+  // The campaign record remains for audit/history, but its promoted content
+  // is removed so it no longer appears in viewer feeds after cancellation.
+  const contentId = campaign.contentId;
+  if (contentId && !db.campaigns.some((other) => other.id !== campaign.id && other.contentId === contentId)) {
+    db.contents = db.contents.filter((content) => content.id !== contentId);
+  }
+
   if (refundableCoins > 0) {
     addWalletTransaction(creatorId, {
       id: crypto.randomUUID(),

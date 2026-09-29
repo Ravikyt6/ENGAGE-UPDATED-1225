@@ -52,30 +52,6 @@ async function getProfileUser(authUser: any): Promise<User> {
   };
 }
 
-const DEMO_USERS: Record<
-  string,
-  { password: string; role: User["role"]; name: string; accountType: "earning" | "promotion" }
-> = {
-  "admin@engage.app": {
-    password: "Admin@123",
-    role: "admin",
-    name: "Admin",
-    accountType: "promotion",
-  },
-  "user@engage.app": {
-    password: "User@123",
-    role: "user",
-    name: "Demo User",
-    accountType: "earning",
-  },
-  "creator@engage.app": {
-    password: "Creator@123",
-    role: "creator",
-    name: "Demo Creator",
-    accountType: "promotion",
-  },
-};
-
 const LIVE_MODE_KEY = "engage_runtime_mode";
 
 const ACCOUNT_TYPE_KEY = "engage_pending_account_type";
@@ -190,18 +166,19 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         return true;
       }
 
-      const account = DEMO_USERS[cleanEmail];
+      const localUsers = JSON.parse(localStorage.getItem("engage_local_users") || "[]");
+      const account = localUsers.find((u: any) => String(u.email || "").toLowerCase() === cleanEmail);
 
       if (!account || account.password !== password) {
         throw new Error("Invalid email or password.");
       }
 
       const localUser: User = {
-        id: `local_${cleanEmail}`,
+        id: account.id,
         email: cleanEmail,
         name: account.name,
-        role: account.role,
-        accountType: account.accountType || (account.role === "creator" ? "promotion" : "earning"),
+        role: account.role || "user",
+        accountType: account.accountType || "earning",
       };
 
       setUser(localUser);
@@ -328,17 +305,17 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         return true;
       }
 
-      // Keep the existing local/demo fallback when Supabase is not configured.
-      const demoUser: User = {
-        id: "local_google_demo",
-        email: "google@engage.app",
-        name: "Google Demo User",
+      // Local fallback when Supabase is not configured.
+      const localUser: User = {
+        id: `local_google_${crypto.randomUUID()}`,
+        email: "google-user@local",
+        name: "Google User",
         role: "user",
         accountType,
       };
 
-      setUser(demoUser);
-      saveLocalUser(demoUser);
+      setUser(localUser);
+      saveLocalUser(localUser);
       return true;
     } finally {
       setLoading(false);
