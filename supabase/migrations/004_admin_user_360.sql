@@ -313,7 +313,7 @@ begin
     (select max(created_at) from public.wallet_transactions where user_id=p_user_id),
     (select max(created_at) from public.campaigns where creator_id=p_user_id),
     (select max(qualified_at) from public.campaign_qualifications where user_id=p_user_id),
-    (select max(created_at) from public.withdrawals where user_id=p_user_id),
+    (select max(requested_at) from public.withdrawals where user_id=p_user_id),
     (select max(created_at) from public.user_admin_audit where user_id=p_user_id)
   ) into last_activity;
 
