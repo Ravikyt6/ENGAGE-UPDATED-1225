@@ -1,0 +1,11 @@
+{
+  "name": "ENGAGE",
+  "short_name": "ENGAGE",
+  "start_url": "/video",
+  "display": "standalone",
+  "background_color": "#ffffff",
+  "theme_color": "#ff0000",
+  "icons": [
+    {"src":"/engage-logo.svg","sizes":"128x128","type":"image/svg+xml","purpose":"any maskable"}
+  ]
+}

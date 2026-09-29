@@ -1,0 +1,599 @@
+import React, { useState } from "react";
+import Layout from "@/components/Layout";
+import { Link } from "react-router-dom";
+import { useAuth } from "@/context/AuthContext";
+import { useData } from "@/context/DataContext";
+import { ArrowRight, Megaphone, Plus, Target, Users } from "lucide-react";
+
+function CampaignCard({ campaign, content }: any) {
+  const pct = campaign.targetViews
+    ? Math.min(100, (campaign.currentViews / campaign.targetViews) * 100)
+    : 0;
+
+  const remaining = Math.max(
+    0,
+    campaign.targetViews - campaign.currentViews
+  );
+
+  return (
+    <div className="my-campaign">
+      <div className="campaign-top">
+        <span className={`type-chip ${campaign.type}`}>
+          {campaign.type === "shorts"
+            ? "SHORTS"
+            : campaign.type === "live"
+            ? "LIVE"
+            : "VIDEO"}
+        </span>
+
+        <span className={`status ${campaign.status}`}>
+          {String(campaign.status).replace("_", " ").toUpperCase()}
+        </span>
+      </div>
+
+      <div className="campaign-main-row">
+        {content?.thumbnail ? (
+          <img
+            className="campaign-thumb"
+            src={content.thumbnail}
+            alt=""
+          />
+        ) : (
+          <div className="campaign-thumb campaign-thumb-empty">
+            ▶
+          </div>
+        )}
+
+        <div className="campaign-main-info">
+          <h3>{campaign.title}</h3>
+
+          <small className="campaign-content-name">
+            {content?.title || "YouTube Content"}
+          </small>
+
+          <small className="campaign-url">
+            {content?.youtubeUrl || ""}
+          </small>
+        </div>
+      </div>
+
+      <div className="campaign-progress-head">
+        <span>Campaign Progress</span>
+        <b>{pct.toFixed(0)}%</b>
+      </div>
+
+      <div className="progress-track">
+        <i style={{ width: `${pct}%` }} />
+      </div>
+
+      <div className="campaign-stats-grid">
+        <div>
+          <b>
+            {campaign.currentViews.toLocaleString()}
+          </b>
+          <span>
+            / {campaign.targetViews.toLocaleString()} views
+          </span>
+        </div>
+
+        <div>
+          <b>
+            {campaign.requiredWatchSeconds}s
+          </b>
+          <span>watch required</span>
+        </div>
+
+        <div>
+          <b>
+            {Number(campaign.creationCost).toLocaleString()}
+          </b>
+          <span>coins spent</span>
+        </div>
+
+        <div>
+          <b>
+            {Math.round(
+              Number(campaign.coinRewardPerUser || 0)
+            ).toLocaleString()}
+          </b>
+          <span>coins / user</span>
+        </div>
+      </div>
+
+      <div className="campaign-bottom-info">
+        <span>
+          ✓ {campaign.qualifiedUsers || 0} qualified users
+        </span>
+
+        <span>
+          {remaining.toLocaleString()} views remaining
+        </span>
+
+        <span>
+          ₹
+          {Number(
+            campaign.dollarRewardPerUser || 0
+          ).toFixed(2)}
+          / user
+        </span>
+      </div>
+
+      <small className="campaign-created">
+        Created{" "}
+        {new Date(campaign.createdAt).toLocaleString()}
+      </small>
+    </div>
+  );
+}
+
+function MyCampaigns() {
+  const { user } = useAuth();
+  const data = useData();
+
+  const campaigns = user
+    ? data.campaigns.filter(
+        (c: any) => c.creatorId === user.id
+      )
+    : [];
+
+  const totalViews = campaigns.reduce(
+    (sum: number, c: any) =>
+      sum + Number(c.currentViews || 0),
+    0
+  );
+
+  const targetViews = campaigns.reduce(
+    (sum: number, c: any) =>
+      sum + Number(c.targetViews || 0),
+    0
+  );
+
+  const active = campaigns.filter(
+    (c: any) => c.status === "active"
+  ).length;
+
+  return (
+    <>
+      <div className="campaign-summary">
+        <div>
+          <span>MY CAMPAIGNS</span>
+          <b>{campaigns.length}</b>
+        </div>
+
+        <div>
+          <span>ACTIVE</span>
+          <b>{active}</b>
+        </div>
+
+        <div>
+          <span>VIEWS ACHIEVED</span>
+          <b>{totalViews.toLocaleString()}</b>
+        </div>
+
+        <div>
+          <span>TOTAL TARGET</span>
+          <b>{targetViews.toLocaleString()}</b>
+        </div>
+      </div>
+
+      {campaigns.length > 0 ? (
+        <div className="campaign-list">
+          {campaigns.map((campaign: any) => {
+            const content =
+              data.contents.find(
+                (x: any) =>
+                  x.id === campaign.contentId
+              );
+
+            return (
+              <CampaignCard
+                key={campaign.id}
+                campaign={campaign}
+                content={content}
+              />
+            );
+          })}
+        </div>
+      ) : (
+        <div className="empty-card">
+          <div className="empty-icon">📢</div>
+
+          <h3>No campaigns yet</h3>
+
+          <p>
+            Create your first campaign and start
+            getting real viewers.
+          </p>
+
+        </div>
+      )}
+    </>
+  );
+}
+
+export default function CampaignsPage() {
+  React.useEffect(() => {
+    const style = document.createElement("style");
+    style.setAttribute("data-engage-style", "PAGE_CSS");
+    style.textContent = PAGE_CSS;
+    document.head.appendChild(style);
+    return () => style.remove();
+  }, []);
+
+  const [tab, setTab] = useState<"mine" | "create">("mine");
+
+  return (
+    <Layout>
+      <div className="content-head">
+        <div>
+          <h1>Campaigns</h1>
+
+          <p>
+            Create campaigns and track your promotion
+            performance.
+          </p>
+        </div>
+
+      </div>
+
+      <div className="campaign-tabs">
+        <button
+          className={tab === "mine" ? "active" : ""}
+          onClick={() => setTab("mine")}
+        >
+          MY CAMPAIGNS
+        </button>
+
+        <button
+          className={tab === "create" ? "active" : ""}
+          onClick={() => setTab("create")}
+        >
+          CREATE CAMPAIGN
+        </button>
+      </div>
+
+      {tab === "mine" ? (
+        <MyCampaigns />
+      ) : (
+        <div className="campaign-create-intro">
+          <div className="campaign-create-icon"><Megaphone size={26}/></div>
+          <h2>Create a new campaign</h2>
+          <p>Promote your YouTube videos, Shorts or Live content and reach qualified viewers.</p>
+
+          <div className="campaign-create-features">
+            <div className="campaign-create-feature">
+              <span className="campaign-feature-icon"><Target size={17}/></span>
+              <span>Set your target</span>
+            </div>
+            <div className="campaign-create-feature">
+              <span className="campaign-feature-icon"><Users size={17}/></span>
+              <span>Reach viewers</span>
+            </div>
+            <div className="campaign-create-feature">
+              <span className="campaign-feature-icon"><Plus size={17}/></span>
+              <span>Track progress</span>
+            </div>
+          </div>
+
+          <Link className="campaign-open-create" to="/create-campaign">
+            <span>OPEN CREATE CAMPAIGN</span>
+            <ArrowRight size={17}/>
+          </Link>
+        </div>
+      )}
+    </Layout>
+  );
+}
+
+function CreateCampaignInline() {
+  // Keep the exact existing Create Campaign UI and logic
+  // while displaying it inside the Campaigns section.
+  return (
+    <div className="create-embedded">
+      <iframe
+        title="Create Campaign"
+        src="/create-campaign"
+        style={{
+          width: "100%",
+          minHeight: "780px",
+          border: 0,
+          background: "transparent",
+        }}
+      />
+    </div>
+  );
+}
+
+/* ===== CAMPAIGNSPAGE CSS — kept inside this file ===== */
+const PAGE_CSS = String.raw`
+.compact{
+  padding: 9px 10px !important;
+  font-size: 11px;
+  text-decoration: none;
+}
+
+.campaign-card,
+.my-campaign{
+  border: 1px solid #e7e7e7;
+  border-radius: 10px;
+  padding: 13px;
+  background: #fff;
+  box-shadow: 0 2px 8px #00000008;
+}
+
+.campaign-top{
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-size: 9px;
+  color: #888;
+  text-transform: uppercase;
+  font-weight: 800;
+}
+
+.campaign-card h3,
+.my-campaign h3{
+  margin: 10px 0;
+  font-size: 16px;
+}
+
+.progress-track{
+  height: 7px;
+  background: #eee;
+  border-radius: 8px;
+  overflow: hidden;
+}
+
+.progress-track i{
+  display: block;
+  height: 100%;
+  background: #e33;
+}
+
+.empty-card{
+  padding: 30px 15px;
+  text-align: center;
+  border: 1px solid #eee;
+  border-radius: 10px;
+  color: #777;
+  background: #fff;
+}
+
+.empty-card a{
+  color: #FF0000;
+}
+
+.empty-card a.primary{
+  color:#fff !important;
+  display:inline-flex;
+  align-items:center;
+  justify-content:center;
+  min-width:170px;
+  min-height:44px;
+  text-decoration:none;
+}
+
+.campaign-tabs{
+  display: flex;
+  gap: 6px;
+  padding: 4px;
+  background: #f3f3f3;
+  border-radius: 9px;
+  margin: 0 0 13px;
+}
+
+.campaign-tabs button{
+  flex: 1;
+  border: 0;
+  background: transparent;
+  color: #777;
+  border-radius: 7px;
+  padding: 10px 8px;
+  font-size: 10px;
+  font-weight: 900;
+  cursor: pointer;
+}
+
+.campaign-tabs button.active{
+  background: #fff;
+  color: #e63232;
+  box-shadow: 0 2px 7px rgba(0, 0, 0, 0.08);
+}
+
+.campaign-summary{
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 7px;
+  margin-bottom: 10px;
+}
+
+.campaign-summary > div{
+  background: #fff;
+  border: 1px solid #eee;
+  border-radius: 8px;
+  padding: 9px;
+}
+
+.campaign-summary span{
+  display: block;
+  color: #999;
+  font-size: 8px;
+  font-weight: 800;
+}
+
+.campaign-summary b{
+  display: block;
+  color: #222;
+  font-size: 16px;
+  margin-top: 3px;
+}
+
+.my-campaign{
+  background: #fff;
+  border: 1px solid #e8e8e8;
+  border-radius: 10px;
+  padding: 12px;
+  margin-bottom: 9px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.045);
+}
+
+.campaign-main-row{
+  display: flex;
+  gap: 10px;
+  margin: 9px 0;
+}
+
+.campaign-thumb{
+  width: 105px;
+  height: 60px;
+  object-fit: cover;
+  border-radius: 7px;
+  flex: none;
+}
+
+.campaign-thumb-empty{
+  display: grid;
+  place-items: center;
+  background: #eee;
+  color: #888;
+  font-weight: 900;
+}
+
+.campaign-main-info{
+  min-width: 0;
+  flex: 1;
+}
+
+.campaign-main-info h3{
+  margin: 0 0 3px;
+  font-size: 13px;
+  color: #222;
+}
+
+.campaign-content-name,
+.campaign-url{
+  display: block;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+  color: #888;
+  font-size: 9px;
+}
+
+.campaign-progress-head{
+  display: flex;
+  justify-content: space-between;
+  margin: 7px 0 5px;
+  font-size: 9px;
+  color: #777;
+  font-weight: 800;
+}
+
+.campaign-progress-head b{
+  color: #e63232;
+}
+
+.campaign-stats-grid{
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 6px;
+  margin-top: 9px;
+}
+
+.campaign-stats-grid > div{
+  background: #f8f8f8;
+  border-radius: 6px;
+  padding: 7px;
+}
+
+.campaign-stats-grid b{
+  display: block;
+  font-size: 11px;
+  color: #222;
+}
+
+.campaign-stats-grid span{
+  display: block;
+  font-size: 8px;
+  color: #999;
+  margin-top: 2px;
+}
+
+.campaign-bottom-info{
+  display: flex;
+  justify-content: space-between;
+  gap: 7px;
+  margin-top: 8px;
+  font-size: 9px;
+  color: #777;
+}
+
+.campaign-created{
+  display: block;
+  color: #aaa;
+  font-size: 8px;
+  margin-top: 8px;
+}
+
+.empty-icon{
+  font-size: 28px;
+}
+
+.empty-card h3{
+  margin: 8px 0 3px;
+  font-size: 15px;
+}
+
+.empty-card p{
+  margin: 0 0 14px;
+  color: #888;
+  font-size: 11px;
+}
+
+.create-back{
+  color: #e63232;
+  font-size: 11px;
+  font-weight: 900;
+  cursor: pointer;
+  margin: 3px 0 11px;
+}
+
+.create-embedded-link{
+  background: #fff;
+  border: 1px solid #eee;
+  border-radius: 11px;
+  padding: 15px;
+}
+
+@media (max-width: 600px){.campaign-summary{
+    grid-template-columns: repeat(2, 1fr);
+  }
+.campaign-stats-grid{
+    grid-template-columns: repeat(2, 1fr);
+  }
+.campaign-bottom-info{
+    flex-wrap: wrap;
+  }
+.campaign-thumb{
+    width: 90px;
+    height: 52px;
+  }}
+
+/* ===== CAMPAIGN UI UPDATE ===== */
+.campaign-create-intro{min-height:360px;padding:30px 22px;display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;border:1px solid #e9e9e9;border-radius:16px;background:linear-gradient(180deg,#fff,#fffafa);box-shadow:0 8px 24px rgba(0,0,0,.04)}
+.campaign-create-icon{width:64px;height:64px;border-radius:18px;display:grid;place-items:center;background:#fff0f0;color:#FF0000;margin-bottom:13px;flex:none}
+.campaign-create-intro h2{margin:0;color:#222;font-size:21px;line-height:1.2;font-weight:950}
+.campaign-create-intro p{max-width:520px;margin:8px 0 20px;color:#777;font-size:12px;line-height:1.55}
+.campaign-create-features{display:flex;flex-direction:column;gap:8px;width:min(520px,100%);margin:0 0 22px}
+.campaign-create-feature{width:100%;min-height:48px;box-sizing:border-box;display:flex;align-items:center;justify-content:flex-start;gap:10px;padding:0 15px;border:1px solid #ececec;border-radius:11px;background:#fff;color:#555;font-size:10px;font-weight:900;text-align:left;box-shadow:0 2px 7px rgba(0,0,0,.025)}
+.campaign-feature-icon{width:28px;height:28px;display:grid;place-items:center;flex:none;border-radius:8px;background:#fff0f0;color:#FF0000}
+.campaign-create-feature svg{color:#FF0000}
+.campaign-open-create{width:min(300px,100%);min-height:50px;box-sizing:border-box;display:flex;align-items:center;justify-content:center;gap:9px;border-radius:10px;background:#FF0000;color:#fff !important;text-decoration:none;font-size:11px;font-weight:950;box-shadow:0 7px 16px rgba(237,52,52,.16);transition:transform .15s ease,background .15s ease}
+.campaign-open-create:hover{background:#d92d2d;transform:translateY(-1px)}
+.empty-card{min-height:300px;display:flex;flex-direction:column;align-items:center;justify-content:center}
+.empty-card .empty-icon{width:58px;height:58px;display:grid;place-items:center;border-radius:16px;background:#fff0f0;font-size:25px;margin-bottom:9px}
+.empty-card h3{margin:0;color:#333;font-size:18px}
+.empty-card p{max-width:360px;line-height:1.5}
+@media(max-width:700px){.campaign-summary{grid-template-columns:repeat(2,1fr)}.campaign-create-intro{min-height:390px;padding:28px 15px}.campaign-create-features{width:100%;max-width:360px}.campaign-create-feature{min-height:50px}.campaign-open-create{width:min(300px,100%)}}
+
+`;
