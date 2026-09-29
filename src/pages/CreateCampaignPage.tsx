@@ -1,11 +1,14 @@
 import Layout from "@/components/Layout";
 import { useAuth } from "@/context/AuthContext";
 import { useData } from "@/context/DataContext";
-import { CheckCircle2, Clock3, Coins, Eye, Link2, Loader2, PlaySquare, Radio, Video } from "lucide-react";
+import { Ban, CheckCircle2, Clock3, Coins, Eye, Link2, Loader2, PlaySquare, Radio, Video } from "lucide-react";
 import { calculateCampaignEconomy, formatWatchTime } from "@/services/campaignEconomy";
 import React, { useMemo, useState } from "react";
+import YouTubePlayer from "@/components/YouTubePlayer";
 
 type CampaignType = "video" | "shorts" | "live";
+
+function BanIcon(){ return <Ban size={13} />; }
 
 function getYouTubeId(value: string) {
   try {
@@ -44,6 +47,7 @@ export default function CreateCampaignPage() {
   const [watchUnit, setWatchUnit] = useState<"seconds" | "minutes">("seconds");
   const [creationRequestId, setCreationRequestId] = useState(() => crypto.randomUUID());
   const [loaded, setLoaded] = useState(false);
+  const [videoDuration, setVideoDuration] = useState(0);
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
   const [success, setSuccess] = useState("");
@@ -81,6 +85,7 @@ export default function CreateCampaignPage() {
 
   const loadYouTube = () => {
     setError("");
+    setVideoDuration(0);
     if (!videoId) {
       setLoaded(false);
       setError("Please enter a valid YouTube Video, Shorts or Live URL.");
@@ -99,6 +104,8 @@ export default function CreateCampaignPage() {
     if (watchSeconds < 30) return setError("Required watch time must be at least 30 seconds.");
     if (watchSeconds % 30 !== 0) return setError("Required watch time must use 30-second increments. You can enter the duration in seconds or minutes.");
     if (type === "shorts" && watchSeconds >= 60) return setError("Shorts watch requirement must be below 60 seconds.");
+    if (type === "shorts" && !videoDuration) return setError("Please wait for the YouTube content duration to load before creating the Shorts campaign.");
+    if (type === "shorts" && videoDuration >= 60) return setError("This content is 60 seconds or longer and is not eligible as a Short.");
 
     let currentEconomy;
     try {
@@ -126,6 +133,7 @@ export default function CreateCampaignPage() {
       setTitle("");
       setUrl("");
       setLoaded(false);
+      setVideoDuration(0);
       setCreationRequestId(crypto.randomUUID());
       setSuccess(`Campaign created successfully. ${currentEconomy.campaignCost.toLocaleString()} coins deducted.`);
       window.setTimeout(() => setSuccess(""), 4200);
@@ -174,20 +182,40 @@ export default function CreateCampaignPage() {
           <div className="create-url-row">
             <div className="create-url-input">
               <Link2 size={16} />
-              <input value={url} onChange={(e) => { setUrl(e.target.value); setLoaded(false); setError(""); }} placeholder={type === "live" ? "https://youtube.com/live/..." : type === "shorts" ? "https://youtube.com/shorts/..." : "https://youtube.com/watch?v=..."} />
+              <input value={url} onChange={(e) => { setUrl(e.target.value); setLoaded(false); setVideoDuration(0); setError(""); }} placeholder={type === "live" ? "https://youtube.com/live/..." : type === "shorts" ? "https://youtube.com/shorts/..." : "https://youtube.com/watch?v=..."} />
             </div>
             <button type="button" className="create-load-btn" onClick={loadYouTube}>LOAD</button>
           </div>
 
           {loaded && videoId && (
-            <div className="youtube-preview create-preview">
-              <img src={`https://img.youtube.com/vi/${videoId}/hqdefault.jpg`} alt="" />
-              <div>
-                <div className="loaded-status"><CheckCircle2 size={13} /> CONTENT LOADED</div>
-                <b>{type.toUpperCase()} CONTENT</b>
-                <small>{videoId}</small>
+            <>
+              <div className="youtube-preview create-preview">
+                <img src={`https://img.youtube.com/vi/${videoId}/hqdefault.jpg`} alt="" />
+                <div>
+                  <div className={`loaded-status ${type === "shorts" && videoDuration >= 60 ? "loaded-error" : ""}`}>
+                    {type === "shorts" && videoDuration >= 60 ? <BanIcon /> : <CheckCircle2 size={13} />}
+                    {type === "shorts" && videoDuration >= 60 ? "NOT ELIGIBLE" : "CONTENT LOADED"}
+                  </div>
+                  <b>{type.toUpperCase()} CONTENT</b>
+                  <small>{videoId}{videoDuration > 0 ? ` • ${Math.ceil(videoDuration)}s` : " • Checking duration…"}</small>
+                </div>
               </div>
-            </div>
+
+              <div className="campaign-duration-validator" aria-hidden="true">
+                <YouTubePlayer
+                  key={`${videoId}-${type}`}
+                  videoId={videoId}
+                  autoplay={false}
+                  onTime={(_, duration) => setVideoDuration(duration)}
+                />
+              </div>
+
+              {type === "shorts" && videoDuration >= 60 && (
+                <div className="error-inline campaign-load-error">
+                  This content is 60 seconds or longer and is not eligible as a Short. Please use a video under 60 seconds.
+                </div>
+              )}
+            </>
           )}
 
           <label><span>Campaign Title</span></label>

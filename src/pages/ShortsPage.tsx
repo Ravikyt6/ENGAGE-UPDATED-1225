@@ -266,7 +266,6 @@ export default function ShortsPage(){
     );
   }
 
-  const valid=duration===0||duration<60;
   const progress=target?Math.min(100,watched/target*100):0;
   const remaining=Math.max(0,Math.ceil(target-watched));
 
@@ -326,11 +325,11 @@ export default function ShortsPage(){
           <small>SECONDS LEFT</small>
         </div>
 
-        <div className="autoplay-control">
+        <div className="short-autoplay-control">
           <span>Autoplay</span>
           <button
             type="button"
-            className={`autoplay-toggle ${autoplay ? "on" : ""}`}
+            className={`short-autoplay-toggle ${autoplay ? "on" : ""}`}
             aria-label={`Autoplay ${autoplay ? "on" : "off"}`}
             aria-pressed={autoplay}
             onClick={()=>setAutoplay(v=>!v)}
@@ -374,12 +373,6 @@ export default function ShortsPage(){
               <span>INR REWARD</span>
             </div>
           </div>
-        </div>
-      )}
-
-      {!valid&&(
-        <div className="error-inline">
-          This content is 60 seconds or longer and is not eligible as a Short.
         </div>
       )}
 

@@ -1,7 +1,6 @@
 import { useAuth } from "@/context/AuthContext";
 import {
   ExternalLink,
-  FileVideo,
   LayoutDashboard,
   LogOut,
   Megaphone,
@@ -39,11 +38,6 @@ export default function AdminLayout() {
       to: "/admin/campaigns",
       label: "Campaigns",
       icon: Megaphone,
-    },
-    {
-      to: "/admin/content",
-      label: "Content",
-      icon: FileVideo,
     },
     {
       to: "/admin/users",

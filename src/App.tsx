@@ -1,5 +1,4 @@
 import AdminCampaigns from "@/admin/AdminCampaigns";
-import AdminContent from "@/admin/AdminContent";
 import AdminDashboard from "@/admin/AdminDashboard";
 import AdminLayout from "@/admin/AdminLayout";
 import AdminSettings from "@/admin/AdminSettings";
@@ -175,7 +174,7 @@ function RoutesView() {
       >
         <Route index element={<AdminDashboard />} />
         <Route path="campaigns" element={<AdminCampaigns />} />
-        <Route path="content" element={<AdminContent />} />
+        <Route path="content" element={<Navigate to="/admin/campaigns" replace />} />
         <Route path="users">
           <Route index element={<AdminUsers />} />
           <Route path=":userId" element={<AdminUsers />} />
