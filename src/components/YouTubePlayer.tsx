@@ -24,6 +24,8 @@ interface Props{
  onStateChange?:(s:PlayerState)=>void;
  onTime?:(current:number,duration:number)=>void;
  onEnded?:()=>void;
+ onReady?:()=>void;
+ onError?:(code:number)=>void;
  className?:string;
  minimalUi?:boolean;
  overlayTitle?:string;
@@ -69,6 +71,8 @@ const YouTubePlayer=forwardRef<YouTubePlayerHandle,Props>(
    onStateChange,
    onTime,
    onEnded,
+   onReady,
+   onError,
    className='',
    minimalUi=false,
    overlayTitle='',
@@ -85,13 +89,17 @@ const YouTubePlayer=forwardRef<YouTubePlayerHandle,Props>(
   const callbacks=useRef({
    onStateChange,
    onTime,
-   onEnded
+   onEnded,
+   onReady,
+   onError
   });
 
   callbacks.current={
    onStateChange,
    onTime,
-   onEnded
+   onEnded,
+   onReady,
+   onError
   };
 
   const[ready,setReady]=useState(false);
@@ -148,6 +156,7 @@ const YouTubePlayer=forwardRef<YouTubePlayerHandle,Props>(
       events:{
        onReady:(e:any)=>{
         setReady(true);
+        callbacks.current.onReady?.();
 
         const tick=()=>{
          if(!player.current)return;

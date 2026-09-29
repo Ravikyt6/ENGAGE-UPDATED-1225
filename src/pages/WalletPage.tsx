@@ -29,7 +29,7 @@ interface WalletTransaction {
 
 type Filter = "all" | "earning" | "spend" | "withdrawal";
 
-export default function WalletPage() {
+function UserWalletPage() {
   const { user } = useAuth();
   const data = useData();
   const wallet = data.wallet || { coins: 0, earnings: 0 };
@@ -178,6 +178,49 @@ export default function WalletPage() {
     </Layout>
   );
 }
+
+function CreatorWalletPage(){
+  const { user } = useAuth();
+  const data = useData();
+  const wallet = data.wallet || { coins: 0, earnings: 0 };
+  const [transactions,setTransactions]=React.useState<WalletTransaction[]>([]);
+  const [loading,setLoading]=React.useState(true);
+  const load=React.useCallback(async()=>{
+    if(!user?.id)return;
+    setLoading(true);
+    try{ setTransactions((await data.getWalletTransactions(user.id)||[]) as WalletTransaction[]); }
+    catch(e){ console.error("Creator wallet load failed:",e); setTransactions([]); }
+    finally{ setLoading(false); }
+  },[data,user?.id]);
+  React.useEffect(()=>{void load()},[load]);
+  const spent=transactions.filter(t=>t.type==="spend").reduce((n,t)=>n+Math.abs(Number(t.coins||0)),0);
+  const refunded=transactions.filter(t=>t.type==="refund").reduce((n,t)=>n+Math.abs(Number(t.coins||0)),0);
+  const formatDate=(v:string)=>new Intl.DateTimeFormat("en-IN",{day:"2-digit",month:"short",year:"numeric",hour:"2-digit",minute:"2-digit"}).format(new Date(v));
+  const rows=transactions.filter(t=>t.type==="spend"||t.type==="refund"||t.type==="admin_adjustment");
+  return <Layout>
+    <div className="creator-wallet-page">
+      <section className="creator-wallet-heading"><div className="creator-wallet-icon"><WalletCards size={22}/></div><div><h1>Campaign Wallet</h1><p>Coins used only for creating and promoting campaigns.</p></div></section>
+      <section className="creator-wallet-hero"><div><span>AVAILABLE CAMPAIGN COINS</span><strong>{Number(wallet.coins||0).toLocaleString()}</strong><small>Ready to spend on campaigns</small></div><div className="creator-wallet-coin-icon"><Coins size={24}/></div></section>
+      <section className="creator-wallet-stats"><div><span>CAMPAIGN SPENT</span><strong>{spent.toLocaleString()}</strong><small>coins used</small></div><div><span>REFUNDED</span><strong>{refunded.toLocaleString()}</strong><small>unused campaign coins</small></div></section>
+      <Link to="/create-campaign" className="creator-wallet-create"><Plus size={18}/> CREATE CAMPAIGN</Link>
+      <section className="creator-wallet-history"><div className="creator-wallet-history-head"><div><h2>Campaign Wallet Activity</h2><p>Only campaign coin transactions are shown.</p></div><button type="button" onClick={load} disabled={loading}><RefreshCw size={14} className={loading?"wallet-spin":""}/> REFRESH</button></div>
+      {loading?<div className="wallet-empty">Loading campaign wallet...</div>:rows.length===0?<div className="wallet-empty"><Coins size={23}/><b>No campaign transactions yet.</b><span>Create a campaign to start using your campaign wallet.</span></div>:<div className="wallet-transactions">{rows.map(tx=>{const credit=tx.type!=="spend";return <div className="wallet-transaction" key={tx.id}><div className={`wallet-tx-icon ${credit?"credit":"debit"}`}>{credit?<ArrowDownLeft size={16}/>:<ArrowUpRight size={16}/>}</div><div className="wallet-tx-main"><b>{tx.type==="spend"?"Campaign Spend":tx.type==="refund"?"Campaign Refund":"Balance Adjustment"}</b><span>{tx.description||"Campaign wallet transaction"}</span><small>{formatDate(tx.createdAt)}</small></div><div className="wallet-tx-amount"><strong className={credit?"credit-text":"debit-text"}>{credit?"+":"-"}{Math.abs(Number(tx.coins||0)).toLocaleString()}</strong><small>{Number(tx.balanceAfter||0).toLocaleString()} balance</small></div></div>})}</div>}
+      </section>
+      <section className="creator-wallet-note"><CheckCircle2 size={18}/><div><b>Creator wallet only</b><span>No viewer earnings, INR balance, withdrawal, or payout controls are available on creator accounts.</span></div></section>
+    </div>
+    <style>{CREATOR_WALLET_CSS}</style>
+  </Layout>
+}
+
+export default function WalletPage(){
+  const {user}=useAuth();
+  const isPromotion=user?.role==="creator" || user?.accountType==="promotion";
+  return isPromotion ? <CreatorWalletPage/> : <UserWalletPage/>;
+}
+
+const CREATOR_WALLET_CSS = String.raw`
+.creator-wallet-page{width:min(100%,780px);margin:0 auto;padding:8px 10px 34px;color:#151515}.creator-wallet-heading{display:flex;align-items:center;gap:12px;margin:2px 2px 18px}.creator-wallet-icon{width:52px;height:52px;border-radius:16px;background:#fff0f0;color:#f00;display:grid;place-items:center}.creator-wallet-heading h1{margin:0;font-size:30px;line-height:1;font-weight:950;letter-spacing:-.7px}.creator-wallet-heading p{margin:6px 0 0;color:#777;font-size:12px}.creator-wallet-hero{display:flex;align-items:center;justify-content:space-between;padding:22px 18px;border:1px solid #eee;border-top:3px solid #f00;border-radius:20px;background:#fff;box-shadow:0 8px 24px rgba(0,0,0,.05)}.creator-wallet-hero span{display:block;color:#666;font-size:11px;font-weight:900}.creator-wallet-hero strong{display:block;margin-top:10px;color:#f00;font-size:34px;line-height:1;font-weight:950}.creator-wallet-hero small{display:block;margin-top:8px;color:#999;font-size:10px}.creator-wallet-coin-icon{width:52px;height:52px;border-radius:16px;background:#fff0f0;color:#f00;display:grid;place-items:center}.creator-wallet-stats{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:12px}.creator-wallet-stats>div{padding:16px;border:1px solid #eee;border-radius:16px;background:#fff}.creator-wallet-stats span{display:block;color:#777;font-size:10px;font-weight:900}.creator-wallet-stats strong{display:block;margin-top:11px;font-size:22px;color:#f00}.creator-wallet-stats small{color:#999;font-size:9px}.creator-wallet-create{height:48px;margin-top:14px;border-radius:11px;background:#f00;color:#fff;text-decoration:none;display:flex;align-items:center;justify-content:center;gap:7px;font-size:12px;font-weight:950}.creator-wallet-history{margin-top:18px;border:1px solid #eee;border-radius:18px;background:#fff;padding:16px}.creator-wallet-history-head{display:flex;align-items:center;justify-content:space-between;gap:10px}.creator-wallet-history-head h2{margin:0;font-size:18px;font-weight:950}.creator-wallet-history-head p{margin:5px 0 0;color:#888;font-size:10px}.creator-wallet-history-head button{height:34px;padding:0 10px;border:1px solid #ddd;border-radius:8px;background:#fff;display:flex;align-items:center;gap:5px;font-size:9px;font-weight:900}.creator-wallet-note{display:flex;align-items:flex-start;gap:10px;margin-top:14px;padding:14px;border-radius:13px;background:#f7fff9;color:#168447}.creator-wallet-note b{display:block;font-size:11px}.creator-wallet-note span{display:block;margin-top:3px;color:#666;font-size:10px;line-height:1.45}@media(max-width:600px){.creator-wallet-page{padding-left:7px;padding-right:7px}.creator-wallet-heading h1{font-size:28px}.creator-wallet-heading p{font-size:11px}.creator-wallet-hero{padding:20px 15px}.creator-wallet-hero strong{font-size:31px}.creator-wallet-stats strong{font-size:20px}}
+`;
 
 const PAGE_CSS = String.raw`
 .wallet-page{width:min(100%,780px);margin:0 auto;padding:14px 10px 34px;color:#151515;background:#fff;box-sizing:border-box}

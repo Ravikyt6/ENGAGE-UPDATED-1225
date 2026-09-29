@@ -47,6 +47,7 @@ export default function CreateCampaignPage() {
   const [watchUnit, setWatchUnit] = useState<"seconds" | "minutes">("seconds");
   const [creationRequestId, setCreationRequestId] = useState(() => crypto.randomUUID());
   const [loaded, setLoaded] = useState(false);
+  const [fetchingContent, setFetchingContent] = useState(false);
   const [videoDuration, setVideoDuration] = useState(0);
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
@@ -85,13 +86,14 @@ export default function CreateCampaignPage() {
 
   const loadYouTube = () => {
     setError("");
+    setLoaded(false);
+    setFetchingContent(false);
     setVideoDuration(0);
     if (!videoId) {
-      setLoaded(false);
       setError("Please enter a valid YouTube Video, Shorts or Live URL.");
       return;
     }
-    setLoaded(true);
+    setFetchingContent(true);
   };
 
   const createCampaign = async () => {
@@ -133,6 +135,7 @@ export default function CreateCampaignPage() {
       setTitle("");
       setUrl("");
       setLoaded(false);
+      setFetchingContent(false);
       setVideoDuration(0);
       setCreationRequestId(crypto.randomUUID());
       setSuccess(`Campaign created successfully. ${currentEconomy.campaignCost.toLocaleString()} coins deducted.`);
@@ -182,40 +185,73 @@ export default function CreateCampaignPage() {
           <div className="create-url-row">
             <div className="create-url-input">
               <Link2 size={16} />
-              <input value={url} onChange={(e) => { setUrl(e.target.value); setLoaded(false); setVideoDuration(0); setError(""); }} placeholder={type === "live" ? "https://youtube.com/live/..." : type === "shorts" ? "https://youtube.com/shorts/..." : "https://youtube.com/watch?v=..."} />
+              <input value={url} onChange={(e) => { setUrl(e.target.value); setLoaded(false); setFetchingContent(false); setVideoDuration(0); setError(""); }} placeholder={type === "live" ? "https://youtube.com/live/..." : type === "shorts" ? "https://youtube.com/shorts/..." : "https://youtube.com/watch?v=..."} />
             </div>
             <button type="button" className="create-load-btn" onClick={loadYouTube}>LOAD</button>
           </div>
 
-          {loaded && videoId && (
-            <>
-              <div className="youtube-preview create-preview">
-                <img src={`https://img.youtube.com/vi/${videoId}/hqdefault.jpg`} alt="" />
-                <div>
-                  <div className={`loaded-status ${type === "shorts" && videoDuration >= 60 ? "loaded-error" : ""}`}>
-                    {type === "shorts" && videoDuration >= 60 ? <BanIcon /> : <CheckCircle2 size={13} />}
-                    {type === "shorts" && videoDuration >= 60 ? "NOT ELIGIBLE" : "CONTENT LOADED"}
-                  </div>
-                  <b>{type.toUpperCase()} CONTENT</b>
-                  <small>{videoId}{videoDuration > 0 ? ` • ${Math.ceil(videoDuration)}s` : " • Checking duration…"}</small>
-                </div>
-              </div>
+          {fetchingContent && videoId && (
+            <div className="campaign-fetching-card" role="status">
+              <Loader2 size={18} className="create-spin" />
+              <div><b>FETCHING CONTENT DATA...</b><span>Checking YouTube content and eligibility. Please wait.</span></div>
+            </div>
+          )}
 
-              <div className="campaign-duration-validator" aria-hidden="true">
-                <YouTubePlayer
-                  key={`${videoId}-${type}`}
-                  videoId={videoId}
-                  autoplay={false}
-                  onTime={(_, duration) => setVideoDuration(duration)}
-                />
-              </div>
+          {videoId && (fetchingContent || loaded) && (
+            <div className="campaign-duration-validator" aria-hidden="true">
+              <YouTubePlayer
+                key={`${videoId}-${type}`}
+                videoId={videoId}
+                autoplay={false}
+                onReady={() => {
+                  if (type !== "shorts") {
+                    setLoaded(true);
+                    setFetchingContent(false);
+                  }
+                }}
+                onTime={(_, duration) => {
+                  if (duration > 0) {
+                    setVideoDuration(duration);
+                    setLoaded(true);
+                    setFetchingContent(false);
+                  }
+                }}
+                onError={() => {
+                  setLoaded(false);
+                  setFetchingContent(false);
+                  setVideoDuration(0);
+                  setError("Could not fetch this YouTube content. Please check the link and try again.");
+                }}
+              />
+            </div>
+          )}
 
-              {type === "shorts" && videoDuration >= 60 && (
-                <div className="error-inline campaign-load-error">
-                  This content is 60 seconds or longer and is not eligible as a Short. Please use a video under 60 seconds.
-                </div>
-              )}
-            </>
+          {loaded && videoId && type === "shorts" && videoDuration < 60 && (
+            <div className="youtube-preview create-preview">
+              <img src={`https://img.youtube.com/vi/${videoId}/hqdefault.jpg`} alt="" />
+              <div>
+                <div className="loaded-status"><CheckCircle2 size={13} /> CONTENT ELIGIBLE</div>
+                <b>SHORTS CONTENT</b>
+                <small>{videoId} • {Math.ceil(videoDuration)}s</small>
+              </div>
+            </div>
+          )}
+
+          {loaded && videoId && type !== "shorts" && (
+            <div className="youtube-preview create-preview">
+              <img src={`https://img.youtube.com/vi/${videoId}/hqdefault.jpg`} alt="" />
+              <div>
+                <div className="loaded-status"><CheckCircle2 size={13} /> CONTENT LOADED</div>
+                <b>{type.toUpperCase()} CONTENT</b>
+                <small>{videoId}{videoDuration > 0 ? ` • ${Math.ceil(videoDuration)}s` : ""}</small>
+              </div>
+            </div>
+          )}
+
+          {loaded && type === "shorts" && videoDuration >= 60 && (
+            <div className="error-inline campaign-load-error">
+              This content is 60 seconds or longer and is not eligible as a Short. Please use a video under 60 seconds.
+            </div>
           )}
 
           <label><span>Campaign Title</span></label>
@@ -537,9 +573,14 @@ const PAGE_CSS = String.raw`
 .create-preview small{
   display: block;
   margin-top: 3px;
-  font-size: 8px;
+  font-size: 9px;
   color: #999;
 }
+
+.campaign-duration-validator{position:absolute;width:2px;height:2px;overflow:hidden;opacity:0;pointer-events:none;left:-9999px;top:-9999px}
+.campaign-fetching-card{display:flex;align-items:center;gap:11px;margin:10px 0;padding:14px;border:1px solid #ffd7d7;border-radius:12px;background:#fff8f8;color:#f00}
+.campaign-fetching-card b{display:block;font-size:11px;font-weight:950}.campaign-fetching-card span{display:block;margin-top:3px;color:#777;font-size:10px}
+
 
 .create-cost-icon{
   width: 38px;
@@ -1229,6 +1270,16 @@ const PAGE_CSS = String.raw`
     padding:0 8px;
     font-size:8px;
   }
+}
+
+@media(max-width:600px){
+  .create-campaign-page .create-page-heading h1{font-size:28px}
+  .create-campaign-page .create-page-heading p{font-size:12px}
+  .create-campaign-page label{font-size:12px}
+  .create-campaign-page .form-input,.create-campaign-page .create-input{font-size:13px}
+  .create-campaign-page .create-number-field input{font-size:14px}
+  .create-campaign-page .create-type-note b{font-size:13px}
+  .create-campaign-page .create-type-note span{font-size:10px}
 }
 
 `;

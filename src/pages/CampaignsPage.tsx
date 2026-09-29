@@ -3,12 +3,13 @@ import Layout from "@/components/Layout";
 import { Link } from "react-router-dom";
 import { useAuth } from "@/context/AuthContext";
 import { useData } from "@/context/DataContext";
-import { ArrowRight, Megaphone, Plus, Target, Users, Trash2 } from "lucide-react";
+import { AlertTriangle, ArrowRight, CheckCircle2, Megaphone, Plus, Target, Users, Trash2, X } from "lucide-react";
 
 function CampaignCard({ campaign, content }: any) {
   const data = useData();
   const [deleting, setDeleting] = useState(false);
-  const [deleteMessage, setDeleteMessage] = useState("");
+  const [confirmDelete, setConfirmDelete] = useState(false);
+  const [toast, setToast] = useState<{type:"success"|"error"; message:string} | null>(null);
   const pct = campaign.targetViews
     ? Math.min(100, (campaign.currentViews / campaign.targetViews) * 100)
     : 0;
@@ -132,29 +133,42 @@ function CampaignCard({ campaign, content }: any) {
             type="button"
             className="campaign-delete-btn"
             disabled={deleting}
-            onClick={async () => {
-              const ok = window.confirm(
-                "Delete this campaign? Unused viewer-reward coins will be returned to your wallet. The platform margin will not be refunded."
-              );
-              if (!ok) return;
-              setDeleting(true);
-              setDeleteMessage("");
-              try {
-                const result = await data.deleteCampaign(campaign.id);
-                setDeleteMessage(
-                  `${Math.round(Number(result?.refundedCoins || 0)).toLocaleString()} unused coins returned. Campaign marked PARTIAL COMPLETED.`
-                );
-              } catch (e: any) {
-                setDeleteMessage(e?.message || "Campaign could not be deleted.");
-              } finally {
-                setDeleting(false);
-              }
-            }}
+            onClick={() => setConfirmDelete(true)}
           >
-            <Trash2 size={14} />
+            <Trash2 size={15} />
             {deleting ? "DELETING..." : "DELETE CAMPAIGN"}
           </button>
-          {deleteMessage && <span className="campaign-delete-message">{deleteMessage}</span>}
+
+          {confirmDelete && (
+            <div className="campaign-confirm-backdrop" role="dialog" aria-modal="true">
+              <div className="campaign-confirm-card">
+                <button type="button" className="campaign-confirm-close" onClick={() => !deleting && setConfirmDelete(false)} aria-label="Close"><X size={18}/></button>
+                <div className="campaign-confirm-icon"><AlertTriangle size={22}/></div>
+                <h3>Delete Campaign?</h3>
+                <p>Unused viewer-reward coins will be returned to your wallet.</p>
+                <small>Platform margin will not be refunded.</small>
+                <div className="campaign-confirm-actions">
+                  <button type="button" className="campaign-confirm-cancel" disabled={deleting} onClick={() => setConfirmDelete(false)}>CANCEL</button>
+                  <button type="button" className="campaign-confirm-delete" disabled={deleting} onClick={async () => {
+                    setDeleting(true);
+                    try {
+                      const result = await data.deleteCampaign(campaign.id);
+                      setConfirmDelete(false);
+                      setToast({type:"success", message:`${Math.round(Number(result?.refundedCoins || 0)).toLocaleString()} unused coins returned. Campaign marked PARTIAL COMPLETED.`});
+                      window.setTimeout(() => setToast(null), 4200);
+                    } catch (e: any) {
+                      setConfirmDelete(false);
+                      setToast({type:"error", message:e?.message || "Campaign could not be deleted."});
+                      window.setTimeout(() => setToast(null), 4200);
+                    } finally {
+                      setDeleting(false);
+                    }
+                  }}>{deleting ? "DELETING..." : "DELETE"}</button>
+                </div>
+              </div>
+            </div>
+          )}
+          {toast && <div className={`campaign-toast ${toast.type}`} role="status">{toast.type === "success" ? <CheckCircle2 size={18}/> : <AlertTriangle size={18}/>}<span>{toast.message}</span></div>}
         </div>
       ) : null}
     </div>
@@ -388,7 +402,16 @@ const PAGE_CSS = String.raw`
 .campaign-delete-row{display:flex;align-items:center;gap:9px;flex-wrap:wrap;margin-top:12px;padding-top:11px;border-top:1px solid #f0f0f0}
 .campaign-delete-btn{height:34px;display:inline-flex;align-items:center;justify-content:center;gap:6px;padding:0 11px;border:1px solid #ffd2d2;border-radius:8px;background:#fff5f5;color:#e11;font-size:9px;font-weight:950;cursor:pointer}
 .campaign-delete-btn:disabled{opacity:.55;cursor:not-allowed}
-.campaign-delete-message{font-size:9px;font-weight:800;color:#168447}
+.campaign-delete-message{font-size:10px;font-weight:800;color:#168447}
+.campaign-toast{position:fixed;top:78px;left:50%;transform:translateX(-50%);z-index:2500;max-width:min(92vw,520px);display:flex;align-items:center;gap:10px;padding:13px 16px;border-radius:12px;color:#fff;font-size:12px;font-weight:800;box-shadow:0 10px 30px rgba(0,0,0,.18);animation:campaignToastIn .2s ease-out}
+.campaign-toast.success{background:#0a9f4f}.campaign-toast.error{background:#d61f1f}
+.campaign-confirm-backdrop{position:fixed;inset:0;z-index:2400;display:grid;place-items:center;padding:18px;background:rgba(0,0,0,.52)}
+.campaign-confirm-card{position:relative;width:min(100%,380px);padding:24px 20px 18px;border-radius:18px;background:#fff;box-shadow:0 18px 55px rgba(0,0,0,.25);text-align:center}
+.campaign-confirm-close{position:absolute;right:10px;top:10px;width:34px;height:34px;border:0;border-radius:9px;background:#f5f5f5;color:#666;display:grid;place-items:center}
+.campaign-confirm-icon{width:48px;height:48px;margin:0 auto 11px;border-radius:15px;background:#fff0f0;color:#e11;display:grid;place-items:center}
+.campaign-confirm-card h3{margin:0 0 7px;font-size:20px;color:#171717}.campaign-confirm-card p{margin:0;color:#555;font-size:13px;line-height:1.45}.campaign-confirm-card small{display:block;margin-top:5px;color:#999;font-size:11px}
+.campaign-confirm-actions{display:grid;grid-template-columns:1fr 1fr;gap:9px;margin-top:18px}.campaign-confirm-actions button{height:42px;border-radius:10px;font-size:11px;font-weight:950;cursor:pointer}.campaign-confirm-cancel{border:1px solid #ddd;background:#fff;color:#555}.campaign-confirm-delete{border:1px solid #e11;background:#e11;color:#fff}.campaign-confirm-actions button:disabled{opacity:.55}
+@keyframes campaignToastIn{from{opacity:0;transform:translate(-50%,-8px)}to{opacity:1;transform:translate(-50%,0)}}
 .empty-card{
   padding: 30px 15px;
   text-align: center;
@@ -635,4 +658,22 @@ const PAGE_CSS = String.raw`
 .empty-card p{max-width:360px;line-height:1.5}
 @media(max-width:700px){.campaign-summary{grid-template-columns:repeat(2,1fr)}.campaign-create-intro{min-height:390px;padding:28px 15px}.campaign-create-features{width:100%;max-width:360px}.campaign-create-feature{min-height:50px}.campaign-open-create{width:min(300px,100%)}}
 
+/* Creator campaign mobile readability polish */
+@media(max-width:600px){
+  .campaign-top{font-size:11px}
+  .campaign-card,.my-campaign{padding:16px;border-radius:14px}
+  .campaign-card h3,.my-campaign h3{font-size:18px;margin:11px 0 7px}
+  .campaign-content-name,.campaign-url{font-size:11px !important;line-height:1.35}
+  .campaign-progress-head{font-size:11px}
+  .campaign-stats-grid{gap:9px}
+  .campaign-stats-grid>div{padding:12px 10px}
+  .campaign-stats-grid b{font-size:18px}
+  .campaign-stats-grid span,.campaign-bottom-info,.campaign-created{font-size:11px}
+  .campaign-bottom-info{gap:8px;line-height:1.4}
+  .campaign-delete-btn{height:40px;padding:0 14px;font-size:11px;border-radius:10px}
+  .campaign-toast{top:70px;font-size:12px;padding:12px 14px}
+}
+
 `;
+
+

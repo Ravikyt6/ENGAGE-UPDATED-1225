@@ -8,6 +8,7 @@ export default function Header(){
   const wallet=user?db.wallets[user.id]:undefined;
   const balance=wallet?.coins||0;
   const earnings=Number(wallet?.earnings||0);
+  const isCreator= user?.role === "creator" || user?.accountType === "promotion";
 
   return <>
     <header className="topbar">
@@ -16,9 +17,9 @@ export default function Header(){
         <span>ENGAGE</span>
       </div>
       <div className="header-actions">
-        <div className="top-earnings" aria-label="Earnings">
+        {!isCreator && <div className="top-earnings" aria-label="Earnings">
           <IndianRupee size={15}/><span>{earnings.toFixed(2)}</span>
-        </div>
+        </div>}
         <div className="coin-balance" aria-label="Coins">
           <span className="coin-balance-icon"><Coins size={16}/></span>
           <span>{balance.toLocaleString()}</span>
