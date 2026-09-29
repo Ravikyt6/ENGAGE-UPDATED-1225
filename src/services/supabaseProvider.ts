@@ -373,6 +373,39 @@ export async function adminListUserWithdrawals(options: any) {
   };
 }
 
+
+export async function adminListWithdrawals(options: any = {}) {
+  const sb = requireSupabase();
+  const { data, error } = await sb.rpc("admin_list_withdrawals", {
+    p_page: options.page || 1,
+    p_page_size: options.pageSize || 25,
+    p_status: options.status || "",
+    p_search: options.search || "",
+    p_date_from: options.dateFrom || null,
+    p_date_to: options.dateTo || null,
+  });
+  if (error) throw error;
+  return { rows: data || [], total: Number(data?.[0]?.total_count || 0) };
+}
+
+export async function adminWithdrawalSummary() {
+  const sb = requireSupabase();
+  const { data, error } = await sb.rpc("admin_withdrawal_summary");
+  if (error) throw error;
+  return data?.[0] || { total_count: 0, pending_count: 0, processing_count: 0, completed_count: 0, rejected_count: 0, failed_count: 0, pending_coins: 0, completed_coins: 0, completed_amount: 0 };
+}
+
+export async function adminUpdateWithdrawal(withdrawalId: string, status: string, referenceId = "") {
+  const sb = requireSupabase();
+  const { data, error } = await sb.rpc("admin_update_withdrawal", {
+    p_withdrawal_id: withdrawalId,
+    p_status: status,
+    p_reference_id: referenceId || null,
+  });
+  if (error) throw error;
+  return data;
+}
+
 export async function adminListUserActivity(options: any) {
   const sb = requireSupabase();
   const { data, error } = await sb.rpc("admin_list_user_activity", {

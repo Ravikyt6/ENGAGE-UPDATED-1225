@@ -61,7 +61,7 @@ export default function VideoPage(){
  const db=dataProvider.getDB();
  const [watchedIds,setWatchedIds]=useState<string[]>([]);
  const [watchedLoading,setWatchedLoading]=useState(true);
- const [autoplay,setAutoplay]=useState(Boolean(db.settings?.autoplayEnabled ?? true));
+ const [autoplay,setAutoplay]=useState(true);
  const [i,setI]=useState(0),[state,setState]=useState<PlayerState>("UNKNOWN");
  const [duration,setDuration]=useState(0),[watched,setWatched]=useState(0);
  const [ad,setAd]=useState(false),[qualified,setQualified]=useState(false),[rewardToast,setRewardToast]=useState("");
@@ -115,6 +115,7 @@ export default function VideoPage(){
 
  const settings=db.settings;
  const target=campaign?.requiredWatchSeconds||30;
+ const progress=target>0 ? Math.min(100,(watched/target)*100) : 0;
 
  useEffect(()=>{
    setWatched(0);
@@ -182,6 +183,14 @@ export default function VideoPage(){
    }
  }
 
+ function next(){
+   if(!videos.length) return;
+   setI(x=>(x+1)%videos.length);
+   if(autoplay){
+     window.setTimeout(()=>playerRef.current?.playVideo(),500);
+   }
+ }
+
  async function completeCampaign(){
    if(!campaign || !user || !v || qualified) return;
 
@@ -209,6 +218,21 @@ export default function VideoPage(){
    }
  }
 
+ 
+
+
+ function closeAd(){
+   setAd(false);
+
+   window.setTimeout(()=>{
+     if(qualificationPending.current){
+       void completeCampaign();
+       return;
+     }
+
+   },150);
+ }
+
  useEffect(()=>{
    if(
      watched>=target &&
@@ -230,46 +254,6 @@ export default function VideoPage(){
      }
    }
  },[watched,target,qualified,campaign?.id,user?.id,v?.id,settings.adEnabled,settings.profitablerSquareEnabled,settings.showAdOnEnd]);
-const progress=target?Math.min(100,watched/target*100):0;
-
-function next(){
-   if(!videos.length) return;
-   setI(x=>(x+1)%videos.length);
- }
-
-  useEffect(() => {
-    if (!autoplay || !v?.id) return;
-
-    let attempts = 0;
-    let timer: number | undefined;
-
-    const startPlayback = () => {
-      attempts += 1;
-      try { playerRef.current?.playVideo(); } catch {}
-      if (attempts < 6) timer = window.setTimeout(startPlayback, 300);
-    };
-
-    timer = window.setTimeout(startPlayback, 150);
-
-    return () => {
-      if (timer !== undefined) window.clearTimeout(timer);
-    };
-  }, [autoplay, v?.id]);
-
-
- function closeAd(){
-   setAd(false);
-
-   window.setTimeout(()=>{
-     if(qualificationPending.current){
-       void completeCampaign();
-       return;
-     }
-
-     playerRef.current?.playVideo();
-   },150);
- }
-
 
  if(data.loading || watchedLoading){
    return <Layout>
@@ -380,12 +364,10 @@ function next(){
        <button
          type="button"
          className={`autoplay-toggle ${autoplay ? "on" : ""}`}
-         aria-label={autoplay ? "Turn autoplay off" : "Turn autoplay on"}
+         aria-label={`Autoplay ${autoplay ? "on" : "off"}`}
          aria-pressed={autoplay}
-         onClick={() => setAutoplay(x => !x)}
-       >
-         <span />
-       </button>
+         onClick={()=>setAutoplay(v=>!v)}
+       ><span /></button>
      </div>
 
      <div className="watch-control-item watch-total">
@@ -1137,4 +1119,5 @@ const PAGE_CSS = String.raw`
 .yt-minimal-zoom:active{transform:scale(.95)}
 .player-meta .duration{display:none !important}
 @media(max-width:480px){.yt-minimal-overlay{padding:10px 10px 0}.yt-minimal-avatar{width:34px;height:34px;flex-basis:34px}.yt-minimal-copy strong{font-size:13px}.yt-minimal-copy span{font-size:10px}.yt-minimal-zoom{width:38px;height:38px}}
-`;
+`
+

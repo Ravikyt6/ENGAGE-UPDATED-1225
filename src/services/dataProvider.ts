@@ -232,6 +232,19 @@ export const dataProvider = {
       total: rows.length,
     });
   },
+  adminListWithdrawals(options: any = {}) {
+    if (isSupabaseMode()) return remote.adminListWithdrawals(options);
+    const rows: any[] = [];
+    return Promise.resolve({ rows, total: 0 });
+  },
+  adminWithdrawalSummary() {
+    if (isSupabaseMode()) return remote.adminWithdrawalSummary();
+    return Promise.resolve({ total_count: 0, pending_count: 0, processing_count: 0, completed_count: 0, rejected_count: 0, failed_count: 0, pending_coins: 0, completed_coins: 0, completed_amount: 0 });
+  },
+  adminUpdateWithdrawal(withdrawalId: string, status: string, referenceId = "") {
+    if (isSupabaseMode()) return remote.adminUpdateWithdrawal(withdrawalId, status, referenceId);
+    throw new Error("Withdrawal controls require Supabase mode.");
+  },
   adminListUserWithdrawals(options: any) {
     if (isSupabaseMode()) return remote.adminListUserWithdrawals(options);
     return Promise.resolve({ rows: [], total: 0 });

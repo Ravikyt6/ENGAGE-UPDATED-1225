@@ -8,6 +8,7 @@ import {
   Menu,
   Settings,
   Users,
+  WalletCards,
   X,
 } from "lucide-react";
 import React, { useState } from "react";
@@ -48,6 +49,11 @@ export default function AdminLayout() {
       to: "/admin/users",
       label: "Users",
       icon: Users,
+    },
+    {
+      to: "/admin/withdrawals",
+      label: "Withdrawals",
+      icon: WalletCards,
     },
     {
       to: "/admin/settings",

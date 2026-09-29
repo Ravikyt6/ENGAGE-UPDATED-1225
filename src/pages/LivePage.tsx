@@ -24,7 +24,7 @@ export default function LivePage(){
  const [state,setState]=useState<PlayerState>("UNKNOWN");
  const [watch,setWatch]=useState(0);
  const [viewers,setViewers]=useState(0);
- const [autoplay,setAutoplay]=useState(Boolean(db.settings?.autoplayEnabled ?? true));
+ const [autoplay,setAutoplay]=useState(true);
  const [qualified,setQualified]=useState(false);
  const [hasStarted,setHasStarted]=useState(false);
  const [toast,setToast]=useState("");
@@ -82,6 +82,7 @@ export default function LivePage(){
    setHasStarted(false);
    last.current=0;
  },[live?.id,campaign?.id,target]);
+
 
  function time(cur:number){
    if(state==="PLAYING"){
@@ -201,7 +202,7 @@ export default function LivePage(){
          ref={playerRef}
          key={live.id}
          videoId={live.youtubeVideoId}
-         autoplay={autoplay}
+         autoplay={false}
          onStateChange={sc}
          onTime={time}
        />
@@ -238,12 +239,10 @@ export default function LivePage(){
        <button
          type="button"
          className={`autoplay-toggle ${autoplay ? "on" : ""}`}
-         aria-label={autoplay ? "Turn autoplay off" : "Turn autoplay on"}
+         aria-label={`Autoplay ${autoplay ? "on" : "off"}`}
          aria-pressed={autoplay}
-         onClick={() => setAutoplay(x => !x)}
-       >
-         <span />
-       </button>
+         onClick={()=>setAutoplay(v=>!v)}
+       ><span /></button>
      </div>
 
      <div className="watch-control-item watch-total">
@@ -1031,14 +1030,19 @@ const PAGE_CSS = String.raw`
 .viewer-count small{display:block;color:#999;font-size:9px;}
 
 @media (max-width:600px){
+  .content-head h1{font-size:24px}
+  .content-head p{font-size:12px}
+  .live-status{font-size:10px;padding:7px 10px}
   .live-card{width:100%;max-width:100%;}
   .live-player{
-    aspect-ratio:9/16;
-    max-height:calc(100vh - 235px);
-    min-height:260px !important;
+    aspect-ratio:4/3;
+    max-height:52vh;
+    min-height:0 !important;
   }
   .live-meta{min-height:64px;padding:11px 12px;}
-  .viewer-count{font-size:20px;}
+  .live-meta b{font-size:16px}
+  .live-meta span{font-size:12px}
+  .viewer-count{font-size:21px;}
   .watch-control-card{margin-top:10px;}
   .watch-reward-card{margin-top:12px;}
   .watch-progress-strip{margin-top:9px;}

@@ -63,7 +63,7 @@ export default function ShortsPage(){
   const [watched,setWatched]=useState(0);
   const [ad,setAd]=useState(false);
   const [qualified,setQualified]=useState(false);
-  const [autoplay,setAutoplay]=useState(false);
+  const [autoplay,setAutoplay]=useState(true);
   const [hasStarted,setHasStarted]=useState(false);
   const [toast,setToast]=useState("");
 
@@ -230,30 +230,13 @@ export default function ShortsPage(){
     settings.showAdOnEnd
   ]);
 
-  useEffect(()=>{
-    if(!autoplay||!s?.id) return;
-
-    let attempts=0;
-    let timer:number|undefined;
-
-    const start=()=>{
-      attempts++;
-      try{playerRef.current?.playVideo();}catch{}
-      if(attempts<6){
-        timer=window.setTimeout(start,300);
-      }
-    };
-
-    timer=window.setTimeout(start,150);
-
-    return()=>{
-      if(timer!==undefined) window.clearTimeout(timer);
-    };
-  },[autoplay,s?.id]);
 
   function next(){
     if(!shorts.length) return;
     setI(x=>(x+1)%shorts.length);
+    if(autoplay){
+      window.setTimeout(()=>playerRef.current?.playVideo(),500);
+    }
   }
 
   function closeAd(){
@@ -265,9 +248,6 @@ export default function ShortsPage(){
         return;
       }
 
-      if(autoplay){
-        playerRef.current?.playVideo();
-      }
     },150);
   }
 
@@ -346,27 +326,15 @@ export default function ShortsPage(){
           <small>SECONDS LEFT</small>
         </div>
 
-        <div className="short-autoplay-control">
+        <div className="autoplay-control">
           <span>Autoplay</span>
           <button
             type="button"
-            className={`short-autoplay-toggle ${autoplay?"on":""}`}
-            aria-label={autoplay?"Turn autoplay off":"Turn autoplay on"}
+            className={`autoplay-toggle ${autoplay ? "on" : ""}`}
+            aria-label={`Autoplay ${autoplay ? "on" : "off"}`}
             aria-pressed={autoplay}
-            onClick={()=>{
-              setAutoplay(prev=>{
-                const nextValue=!prev;
-                if(nextValue){
-                  window.setTimeout(()=>{
-                    try{playerRef.current?.playVideo();}catch{}
-                  },80);
-                }
-                return nextValue;
-              });
-            }}
-          >
-            <span/>
-          </button>
+            onClick={()=>setAutoplay(v=>!v)}
+          ><span /></button>
         </div>
 
         <div className="short-control-item short-total">
@@ -832,12 +800,18 @@ const PAGE_CSS=String.raw`
 }
 
 @media(max-width:600px){
+  .content-head h1{font-size:24px}
+  .content-head p{font-size:12px}
+  .status-pill{font-size:10px;padding:7px 10px}
   .short-stage{border-radius:8px}
+  .short-info b{font-size:16px}
+  .short-info span{font-size:12px}
 
   .short-player{
     width:100%;
     max-width:430px;
-    max-height:none;
+    aspect-ratio:4/5;
+    max-height:64vh;
   }
 
   .short-watch-controls{
@@ -846,9 +820,9 @@ const PAGE_CSS=String.raw`
     gap:4px;
   }
 
-  .short-control-item b{font-size:17px}
-  .short-control-item small{font-size:7px}
-  .short-autoplay-control>span{font-size:10px}
+  .short-control-item b{font-size:21px}
+  .short-control-item small{font-size:8px}
+  .short-autoplay-control>span{font-size:12px}
 
   .short-autoplay-toggle{
     width:38px;
@@ -870,12 +844,12 @@ const PAGE_CSS=String.raw`
     padding:9px;
   }
 
-  .short-reward-main strong{font-size:13px}
-  .short-reward-main span{font-size:7px}
+  .short-reward-main strong{font-size:14px}
+  .short-reward-main span{font-size:8px}
   .short-reward-values{gap:6px}
 
   .short-reward-coins strong,
-  .short-reward-dollar strong{font-size:13px}
+  .short-reward-dollar strong{font-size:14px}
 
   .short-reward-coins span,
   .short-reward-dollar span{font-size:6px}

@@ -4,6 +4,7 @@ import AdminDashboard from "@/admin/AdminDashboard";
 import AdminLayout from "@/admin/AdminLayout";
 import AdminSettings from "@/admin/AdminSettings";
 import AdminUsers from "@/admin/AdminUsers";
+import AdminWithdrawals from "@/admin/AdminWithdrawals";
 import Protected from "@/components/Protected";
 import { AuthProvider, useAuth } from "@/context/AuthContext";
 import { DataProvider, useData } from "@/context/DataContext";
@@ -179,6 +180,7 @@ function RoutesView() {
           <Route index element={<AdminUsers />} />
           <Route path=":userId" element={<AdminUsers />} />
         </Route>
+        <Route path="withdrawals" element={<AdminWithdrawals />} />
         <Route path="settings" element={<AdminSettings />} />
       </Route>
       <Route path="*" element={<Navigate to="/video" replace />} />
