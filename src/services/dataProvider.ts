@@ -1,4 +1,4 @@
-import type { Content, DB, Settings, User } from "@/types";
+import type { Content, DB, Settings, SitePage, SitePageSlug, User } from "@/types";
 import * as local from "./localProvider";
 import * as remote from "./supabaseProvider";
 
@@ -274,6 +274,17 @@ export const dataProvider = {
       return remote.getWatchedContentIds(userId);
     }
     return local.getWatchedContentIds(userId);
+  },
+
+  getSitePage(slug: SitePageSlug) {
+    if (isSupabaseMode()) return remote.getSitePage(slug);
+    return Promise.resolve(local.getSitePage(slug));
+  },
+
+  updateSitePages(pages: SitePage[]) {
+    if (isSupabaseMode()) return remote.updateSitePages(pages);
+    local.updateSitePages(pages);
+    return Promise.resolve();
   },
 
   async markContentWatched(userId: string, contentId: string) {

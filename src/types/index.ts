@@ -1,5 +1,14 @@
 export type ContentType = "video" | "shorts" | "live";
 
+export type SitePageSlug = "privacy" | "terms" | "contact" | "about" | "help";
+
+export interface SitePage {
+  slug: SitePageSlug;
+  title: string;
+  content: string;
+  updatedAt?: string;
+}
+
 export type CampaignStatus =
   | "draft"
   | "pending"

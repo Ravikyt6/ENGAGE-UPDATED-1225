@@ -5,6 +5,8 @@ import type {
   Content,
   Settings,
   ContentType,
+  SitePage,
+  SitePageSlug,
 } from "@/types";
 import { seedDB, defaultSettings } from "@/data/seed";
 import { calculateCampaignEconomy } from "@/services/campaignEconomy";
@@ -14,6 +16,33 @@ const KEY = "engage_updated_db_v1";
 const WATCH_HISTORY_KEY = "engage_content_watch_history_v1";
 
 const WALLET_TRANSACTIONS_KEY = "engage_wallet_transactions_v1";
+const SITE_PAGES_KEY = "engage_site_pages_v1";
+
+const DEFAULT_SITE_PAGES: Record<SitePageSlug, SitePage> = {
+  privacy: { slug: "privacy", title: "Privacy Policy", content: "" },
+  terms: { slug: "terms", title: "Terms & Conditions", content: "" },
+  contact: { slug: "contact", title: "Contact Us", content: "" },
+  about: { slug: "about", title: "About ENGAGE", content: "" },
+  help: { slug: "help", title: "Help & Support", content: "" },
+};
+
+export function getSitePage(slug: SitePageSlug): SitePage {
+  try {
+    const stored = JSON.parse(localStorage.getItem(SITE_PAGES_KEY) || "{}");
+    return { ...DEFAULT_SITE_PAGES[slug], ...(stored[slug] || {}) };
+  } catch {
+    return DEFAULT_SITE_PAGES[slug];
+  }
+}
+
+export function updateSitePages(pages: SitePage[]) {
+  try {
+    const current = JSON.parse(localStorage.getItem(SITE_PAGES_KEY) || "{}");
+    pages.forEach((page) => { current[page.slug] = page; });
+    localStorage.setItem(SITE_PAGES_KEY, JSON.stringify(current));
+  } catch {}
+  return pages;
+}
 
 export function requestWithdrawal(input: any) {
   const db = getDB();

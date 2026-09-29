@@ -1,4 +1,4 @@
-import type { DB, User, Content, Campaign, Settings } from "@/types";
+import type { DB, User, Content, Campaign, Settings, SitePage, SitePageSlug } from "@/types";
 import { supabase } from "./supabase";
 import { seedDB, defaultSettings } from "@/data/seed";
 import { calculateCampaignEconomy } from "@/services/campaignEconomy";
@@ -481,5 +481,40 @@ export async function markContentWatched(
     }
   );
 
+  if (error) throw error;
+}
+
+
+export async function getSitePage(slug: SitePageSlug): Promise<SitePage> {
+  const sb = requireSupabase();
+  const { data, error } = await sb
+    .from("site_pages")
+    .select("slug,title,content,updated_at")
+    .eq("slug", slug)
+    .maybeSingle();
+
+  if (error) throw error;
+  if (!data) {
+    return { slug, title: slug === "about" ? "About ENGAGE" : slug === "privacy" ? "Privacy Policy" : slug === "terms" ? "Terms & Conditions" : slug === "contact" ? "Contact Us" : "Help & Support", content: "" };
+  }
+
+  return {
+    slug: data.slug as SitePageSlug,
+    title: data.title,
+    content: data.content || "",
+    updatedAt: data.updated_at || undefined,
+  };
+}
+
+export async function updateSitePages(pages: SitePage[]) {
+  const sb = requireSupabase();
+  const rows = pages.map((page) => ({
+    slug: page.slug,
+    title: page.title,
+    content: page.content,
+    updated_at: new Date().toISOString(),
+  }));
+
+  const { error } = await sb.from("site_pages").upsert(rows, { onConflict: "slug" });
   if (error) throw error;
 }
