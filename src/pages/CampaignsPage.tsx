@@ -30,7 +30,7 @@ function CampaignCard({ campaign, content }: any) {
         </span>
 
         <span className={`status ${campaign.status}`}>
-          {String(campaign.status).replaceAll("_", " ").toUpperCase()}
+          {String(campaign.status).split("_").join(" ").toUpperCase()}
         </span>
       </div>
 
