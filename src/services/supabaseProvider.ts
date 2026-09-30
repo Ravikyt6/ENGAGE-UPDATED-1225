@@ -9,6 +9,7 @@ let remoteCache: DB = {
   campaigns: [],
   wallets: {},
   settings: defaultSettings,
+  milestones: [],
 };
 
 export function isLiveMode() {

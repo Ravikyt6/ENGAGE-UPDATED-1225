@@ -402,8 +402,8 @@ export default function VideoPage(){
    </div>
 
    {campaign&&(() => {
-     const milestoneDefs = (data.milestones || []).filter((m:any) => m.active !== false && Number(m.views) > 0 && Number(m.rewardRupees) > 0).map((m:any) => ({ views:Number(m.views), reward:Number(m.rewardRupees) })).sort((a:any,b:any)=>a.views-b.views);
-     const activeMilestone = milestoneDefs.find((m) => !milestoneCompleted.includes(m.views)) || null;
+     const milestoneDefs = (data.milestones || []).filter((m:any) => m.active !== false && Number(m.views) > 0 && Number(m.rewardRupees) > 0).map((m: { views: number; rewardRupees: number }) => ({ views:Number(m.views), reward:Number(m.rewardRupees) })).sort((a:any,b:any)=>a.views-b.views);
+     const activeMilestone = milestoneDefs.find((m: { views: number; reward: number }) => !milestoneCompleted.includes(m.views)) || null;
      const milestoneProgress = activeMilestone ? Math.min(100, Math.round((milestoneViews / activeMilestone.views) * 100)) : 100;
      return <div className="watch-reward-card">
        <div className="watch-reward-head">

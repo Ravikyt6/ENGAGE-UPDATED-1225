@@ -8,6 +8,7 @@ type User = {
   name?: string;
   role?: "admin" | "user" | "creator";
   accountType?: "earning" | "promotion";
+  provider: "email" | "google";
 };
 
 type AuthContextType = {
@@ -50,6 +51,7 @@ async function getProfileUser(authUser: any): Promise<User> {
     name,
     role,
     accountType,
+    provider: "email",
   };
 }
 
@@ -112,6 +114,7 @@ async function ensureLocalAccounts() {
         name: account.name,
         role: account.role,
         accountType: account.accountType,
+        provider: "email",
       });
     }
 
@@ -250,6 +253,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         name: account.name,
         role: account.role || "user",
         accountType: account.accountType || "earning",
+        provider: "email",
       };
 
       setUser(localUser);
@@ -298,6 +302,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
             name: name.trim() || "User",
             role: "user",
             accountType,
+            provider: "email",
           });
         }
 
@@ -324,6 +329,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         name: name.trim() || "User",
         role: "user",
         accountType,
+        provider: "google",
       };
 
       users.push(newUser);
@@ -338,6 +344,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         name: newUser.name,
         role: "user",
         accountType,
+        provider: "google",
       };
 
       setUser(publicUser);
@@ -383,6 +390,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         name: "Google User",
         role: "user",
         accountType,
+        provider: "google",
       };
 
       setUser(localUser);
