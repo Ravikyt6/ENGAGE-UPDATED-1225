@@ -48,6 +48,22 @@ function UserWalletPage() {
   const coinValue = 0.0002;
   const maxWithdrawCoins = Math.floor(Number(wallet.coins || 0));
   const requestedAmount = Math.max(0, Number(withdrawCoins || 0)) * coinValue;
+  const [milestoneViews, setMilestoneViews] = React.useState(0);
+  const [milestoneCompleted, setMilestoneCompleted] = React.useState<number[]>([]);
+  const milestoneDefs = (data.milestones || []).filter((m:any) => m.active !== false && Number(m.views) > 0 && Number(m.rewardRupees) > 0).map((m:any) => ({ views:Number(m.views), reward:Number(m.rewardRupees) })).sort((a:any,b:any)=>a.views-b.views);
+  const loadMilestones = React.useCallback(() => {
+    if (!user?.id) return;
+    try {
+      const completedState = JSON.parse(localStorage.getItem("engage_view_milestones_v1") || "{}") as Record<string, number[]>;
+      const completed = Array.isArray(completedState[user.id]) ? completedState[user.id] : [];
+      const totalQualifiedViews = Object.keys(localStorage).filter((key) => key.startsWith("engage_campaign_qualification_") && key.endsWith(`_${user.id}`)).length;
+      setMilestoneViews(totalQualifiedViews);
+      setMilestoneCompleted(completed);
+    } catch {
+      setMilestoneViews(0);
+      setMilestoneCompleted([]);
+    }
+  }, [user?.id]);
 
   const loadTransactions = React.useCallback(async () => {
     if (!user?.id) return;
@@ -63,9 +79,8 @@ function UserWalletPage() {
     }
   }, [data, user?.id]);
 
-  React.useEffect(() => {
-    loadTransactions();
-  }, [loadTransactions]);
+  React.useEffect(() => { loadTransactions(); }, [loadTransactions]);
+  React.useEffect(() => { loadMilestones(); }, [loadMilestones]);
 
   const filteredTransactions = React.useMemo(() => {
     if (filter === "all") return transactions;
@@ -165,10 +180,13 @@ function UserWalletPage() {
           <div className="wallet-kpi"><span>Lifetime Earned</span><strong>₹{Number(wallet.earnings || 0).toFixed(2)}</strong><small>total rewards earned</small><i><Sparkles size={17}/></i></div>
           <div className="wallet-kpi"><span>Total Withdrawn</span><strong>₹{(totalWithdrawnCoins * coinValue).toFixed(2)}</strong><small>paid out</small><i><ArrowUpRight size={17}/></i></div>
         </section>
-        <section className="wallet-summary"><div className="wallet-summary-title"><h2>Quick Rewards Summary</h2><span><b></b> Live</span></div><div className="wallet-summary-grid">
-          <div><span>Today</span><strong>₹{todayEarnings.toFixed(2)}</strong><i><History size={16}/></i></div><div><span>Yesterday</span><strong>₹0.00</strong><i><History size={16}/></i></div><div><span>This Month</span><strong>₹{monthEarnings.toFixed(2)}</strong><i><History size={16}/></i></div><div><span>Last Month</span><strong>₹0.00</strong><i><History size={16}/></i></div><div><span>Lifetime</span><strong>₹{Number(wallet.earnings || 0).toFixed(2)}</strong><i><Sparkles size={16}/></i></div>
-        </div></section>
+
         <section className="wallet-viewer-card"><div className="wallet-viewer-head"><WalletCards size={21}/><h2>{isPromotion ? "Campaign Wallet" : "Viewer Wallet"}</h2></div><span className="wallet-available-label">Available Balance</span><strong className="wallet-available">₹{Number(wallet.earnings || 0).toFixed(2)}</strong><div className="wallet-viewer-stats"><span><b>◷</b> On Hold: <strong>₹0.00</strong></span><span><b>✓</b> Lifetime Earned: <strong>₹{Number(wallet.earnings || 0).toFixed(2)}</strong></span></div>{!isPromotion?<button type="button" className="wallet-withdraw-btn" onClick={openWithdraw} disabled={maxWithdrawCoins<100}><IndianRupee size={17}/> Withdraw</button>:<Link to="/create-campaign" className="wallet-withdraw-btn campaign-link"><Plus size={17}/> Create Campaign</Link>}<div className="wallet-withdraw-note">Minimum withdrawal: ₹20.00</div>{!isPromotion&&<div className="wallet-withdraw-help">{maxWithdrawCoins>=100?"You can request a withdrawal from your available coins.":"You need at least ₹20.00 to withdraw."}</div>}</section>
+        {!isPromotion && <section className="wallet-milestone-card">
+          <div className="wallet-milestone-head"><div><h2>View Milestones</h2><p>All available qualified-view milestones and rewards.</p></div><span>{milestoneDefs.length} TOTAL</span></div>
+          {milestoneDefs.length ? <div className="wallet-milestone-list">{milestoneDefs.map((m:any,i:number)=>{const done=milestoneCompleted.includes(m.views);const progress=Math.min(100,Math.round((milestoneViews/m.views)*100));return <div className={`wallet-milestone-row ${done?"done":""}`} key={`${m.views}-${i}`}><div className="wallet-milestone-copy"><b>{m.views} qualified views</b><small>{done?"Reward unlocked":"₹"+m.reward+" bonus"}</small></div><div className="wallet-milestone-progress"><div><i style={{width:`${progress}%`}}/></div><small>{Math.min(milestoneViews,m.views)}/{m.views}</small></div><strong>₹{m.reward}</strong></div>})}</div> : <div className="wallet-milestone-complete">No milestones configured yet.</div>}
+          <div className="wallet-milestone-total">Current qualified views: <b>{milestoneViews}</b></div>
+        </section>}
         <section id="wallet-history" className="wallet-history-card"><div className="wallet-section-head"><div><h2>Withdrawal history</h2><p>Wallet activity and payout requests.</p></div><button type="button" onClick={loadTransactions} disabled={loadingTransactions}><RefreshCw size={14} className={loadingTransactions?"wallet-spin":""}/> REFRESH</button></div><div className="wallet-filters">{(["all","earning","spend","withdrawal"] as Filter[]).map((item)=><button key={item} type="button" className={filter===item?"active":""} onClick={()=>setFilter(item)}>{item==="all"?"All":item==="earning"?"Earnings":item==="spend"?"Spends":"Withdrawals"}</button>)}</div>{loadingTransactions?<div className="wallet-empty">Loading wallet activity...</div>:filteredTransactions.length===0?<div className="wallet-empty"><History size={23}/><b>No withdrawals yet.</b><span>Your wallet activity will appear here.</span></div>:<div className="wallet-transactions">{filteredTransactions.map((tx)=>{const credit=isCredit(tx.type);return <div className="wallet-transaction" key={tx.id}><div className={`wallet-tx-icon ${credit?"credit":"debit"}`}>{credit?<ArrowDownLeft size={16}/>:<ArrowUpRight size={16}/>}</div><div className="wallet-tx-main"><b>{typeLabel(tx.type)}</b><span>{tx.description||"Wallet transaction"}</span><small>{formatDate(tx.createdAt)}</small></div><div className="wallet-tx-amount"><strong className={credit?"credit-text":"debit-text"}>{credit?"+":"-"}{Math.abs(Number(tx.coins||0)).toLocaleString()}</strong><small>{Number(tx.balanceAfter||0).toLocaleString()} balance</small></div></div>})}</div>}</section>
         <section className="wallet-how-card"><h2><CheckCircle2 size={19}/> How rewards work</h2><p><IndianRupee size={18}/> Earn from valid watch activity using the existing reward rules.</p><p><History size={18}/> Watch time must satisfy the campaign's required qualification.</p><p><span className="wallet-alert">!</span> Invalid or duplicate activity is not counted by the existing system.</p><p><Coins size={18}/> Minimum withdrawal and payout rules remain unchanged.</p><p><CheckCircle2 size={18}/> Payout requests are reviewed through the existing admin flow.</p></section><div className="wallet-safe-space" aria-hidden="true"/>
       </div>
@@ -285,6 +303,7 @@ const PAGE_CSS = String.raw`
 .wallet-how-card{margin-top:22px;padding:20px;border:1px solid #e6e6e6;border-radius:22px;background:#fff;box-shadow:0 7px 22px rgba(0,0,0,.035)}
 .wallet-how-card h2{display:flex;align-items:center;gap:8px;margin:0 0 15px;font-size:18px}.wallet-how-card p{display:flex;align-items:flex-start;gap:10px;margin:13px 0;color:#777;font-size:11px;line-height:1.5}.wallet-how-card p svg{flex:none;color:#f00}
 .wallet-alert{width:18px;height:18px;display:grid;place-items:center;flex:none;border-radius:50%;background:#fff0f0;color:#f00;font-weight:950}
+.wallet-milestone-card{margin-top:12px;padding:15px;border:1px solid #e8e8e8;border-radius:17px;background:#fff;box-shadow:0 6px 18px rgba(0,0,0,.035)}.wallet-milestone-head{display:flex;justify-content:space-between;align-items:flex-start;gap:12px}.wallet-milestone-head h2{margin:0;font-size:17px}.wallet-milestone-head p{margin:4px 0 0;color:#777;font-size:9px}.wallet-milestone-head>span{padding:4px 8px;border-radius:999px;background:#eafff1;color:#098b46;font-size:7px;font-weight:950}.wallet-milestone-row{display:grid;grid-template-columns:1fr minmax(100px,1.1fr) auto;align-items:center;gap:12px;padding:13px 0;border-bottom:1px solid #f0edf2}.wallet-milestone-row:last-of-type{border-bottom:0}.wallet-milestone-copy b,.wallet-milestone-copy small,.wallet-milestone-progress small{display:block}.wallet-milestone-copy b{font-size:10px}.wallet-milestone-copy small{margin-top:3px;color:#888;font-size:8px}.wallet-milestone-progress>div{height:7px;background:#eee;border-radius:999px;overflow:hidden}.wallet-milestone-progress i{display:block;height:100%;background:#ed3434;border-radius:999px}.wallet-milestone-progress small{margin-top:4px;text-align:right;color:#888;font-size:8px}.wallet-milestone-row>strong{font-size:15px;white-space:nowrap;color:#ed3434}.wallet-milestone-total{margin-top:9px;color:#888;font-size:8px;line-height:1.4}@media(max-width:480px){.wallet-milestone-row{grid-template-columns:1fr 90px auto;gap:8px}.wallet-milestone-head h2{font-size:15px}}
 .wallet-safe-space{height:18px}.wallet-spin{animation:walletSpin .8s linear infinite}@keyframes walletSpin{to{transform:rotate(360deg)}}
 
 .withdraw-overlay{position:fixed;inset:0;z-index:2000;display:flex;align-items:flex-end;justify-content:center;padding:14px;background:rgba(0,0,0,.5)}

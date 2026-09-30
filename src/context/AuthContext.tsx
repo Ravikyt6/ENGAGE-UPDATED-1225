@@ -1,5 +1,6 @@
 import React, { createContext, useContext, useEffect, useState } from "react";
 import { supabase, supabaseConfigured } from "@/services/supabase";
+import { dataProvider } from "@/services/dataProvider";
 
 type User = {
   id: string;
@@ -56,6 +57,72 @@ const LIVE_MODE_KEY = "engage_runtime_mode";
 
 const ACCOUNT_TYPE_KEY = "engage_pending_account_type";
 
+// Local development fallback account. This is only created when Supabase/live mode
+// is not active, so local testing still has a working default login.
+const LOCAL_ACCOUNTS = [
+  {
+    id: "local_default_user",
+    email: "ranig8879@gmail.com",
+    password: "pakhi@9818",
+    name: "Pakhi",
+    role: "user" as const,
+    accountType: "earning" as const,
+  },
+  {
+    id: "local_default_creator",
+    email: "creator@engage.local",
+    password: "creator@123",
+    name: "ENGAGE Creator",
+    role: "creator" as const,
+    accountType: "promotion" as const,
+  },
+  {
+    id: "local_default_admin",
+    email: "admin@engage.local",
+    password: "admin@123",
+    name: "ENGAGE Admin",
+    role: "admin" as const,
+    accountType: "promotion" as const,
+  },
+] as const;
+
+async function ensureLocalAccounts() {
+  try {
+    const raw = JSON.parse(localStorage.getItem("engage_local_users") || "[]");
+    const users = Array.isArray(raw) ? raw : [];
+    let changed = false;
+
+    for (const account of LOCAL_ACCOUNTS) {
+      const index = users.findIndex(
+        (u: any) => String(u?.email || "").toLowerCase() === account.email.toLowerCase()
+      );
+
+      if (index === -1) {
+        users.push({ ...account });
+        changed = true;
+      } else {
+        // Keep these built-in credentials/roles stable for local development.
+        users[index] = { ...users[index], ...account };
+        changed = true;
+      }
+
+      await dataProvider.ensureUser({
+        id: account.id,
+        email: account.email,
+        name: account.name,
+        role: account.role,
+        accountType: account.accountType,
+      });
+    }
+
+    if (changed) {
+      localStorage.setItem("engage_local_users", JSON.stringify(users));
+    }
+  } catch {
+    // Ignore malformed local storage; signup can recreate the local store.
+  }
+}
+
 async function applyPendingAccountType() {
   if (!supabase) return;
   const pending = localStorage.getItem(ACCOUNT_TYPE_KEY);
@@ -95,6 +162,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     let active = true;
 
     async function boot() {
+      if (!(isLiveMode() && supabaseConfigured && supabase)) {
+        await ensureLocalAccounts();
+      }
+
       if (isLiveMode() && supabaseConfigured && supabase) {
         const { data } = await supabase.auth.getSession();
 

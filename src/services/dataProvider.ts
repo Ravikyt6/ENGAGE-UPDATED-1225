@@ -1,4 +1,4 @@
-import type { Content, DB, Settings, SitePage, SitePageSlug, User } from "@/types";
+import type { Content, DB, Settings, SitePage, SitePageSlug, User, MilestoneConfig } from "@/types";
 import * as local from "./localProvider";
 import * as remote from "./supabaseProvider";
 
@@ -52,6 +52,11 @@ export const dataProvider = {
   deleteCampaign(campaignId: string, creatorId: string) {
     if (isSupabaseMode()) return remote.deleteCampaign(campaignId, creatorId);
     return Promise.resolve(local.deleteCampaign(campaignId, creatorId));
+  },
+
+  updateMilestones(milestones: MilestoneConfig[]) {
+    if (isSupabaseMode()) return remote.updateMilestones(milestones);
+    return Promise.resolve(local.updateMilestones(milestones));
   },
 
   updateSettings(patch: Partial<Settings>) {

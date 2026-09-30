@@ -1,4 +1,4 @@
-import type { DB, User, Content, Campaign, Settings, SitePage, SitePageSlug } from "@/types";
+import type { DB, User, Content, Campaign, Settings, SitePage, SitePageSlug, MilestoneConfig } from "@/types";
 import { supabase } from "./supabase";
 import { seedDB, defaultSettings } from "@/data/seed";
 import { calculateCampaignEconomy } from "@/services/campaignEconomy";
@@ -27,13 +27,14 @@ function requireSupabase() {
 export async function loadDB(): Promise<DB> {
   const sb = requireSupabase();
 
-  const [profiles, wallets, contents, campaigns, settings] =
+  const [profiles, wallets, contents, campaigns, settings, milestones] =
     await Promise.all([
       sb.from("profiles").select("*").order("created_at", { ascending: false }),
       sb.from("wallets").select("*"),
       sb.from("contents").select("*").order("created_at", { ascending: false }),
       sb.from("campaigns").select("*").order("created_at", { ascending: false }),
       sb.from("app_settings").select("*").eq("id", 1).maybeSingle(),
+      sb.from("milestone_configs").select("*").eq("active", true).order("views", { ascending: true }),
     ]);
 
   const error =
@@ -41,7 +42,8 @@ export async function loadDB(): Promise<DB> {
     wallets.error ||
     contents.error ||
     campaigns.error ||
-    settings.error;
+    settings.error ||
+    milestones.error;
 
   if (error) throw error;
 
@@ -143,7 +145,12 @@ export async function loadDB(): Promise<DB> {
       viewerRewardUsdPerCoin: Number(
         settings.data?.viewer_reward_usd_per_coin ?? 0.0002
       ),
+      milestone1Views: Number(settings.data?.milestone1_views ?? defaultSettings.milestone1Views),
+      milestone1RewardRupees: Number(settings.data?.milestone1_reward_rupees ?? defaultSettings.milestone1RewardRupees),
+      milestone2Views: Number(settings.data?.milestone2_views ?? defaultSettings.milestone2Views),
+      milestone2RewardRupees: Number(settings.data?.milestone2_reward_rupees ?? defaultSettings.milestone2RewardRupees),
     },
+    milestones: (milestones.data || []).map((m: any) => ({ id: m.id, views: Number(m.views), rewardRupees: Number(m.reward_rupees), sortOrder: Number(m.sort_order || 0), active: m.active !== false })),
   };
 
   remoteCache = db;
@@ -492,6 +499,10 @@ export async function updateSettings(
       show_ad_on_end: patch.showAdOnEnd,
       min_short_seconds: patch.minShortSeconds,
       max_short_seconds: patch.maxShortSeconds,
+      milestone1_views: patch.milestone1Views,
+      milestone1_reward_rupees: patch.milestone1RewardRupees,
+      milestone2_views: patch.milestone2Views,
+      milestone2_reward_rupees: patch.milestone2RewardRupees,
       updated_at: new Date().toISOString(),
     })
     .eq("id", 1);
@@ -501,6 +512,18 @@ export async function updateSettings(
   await loadDB();
 }
 
+
+export async function updateMilestones(milestones: MilestoneConfig[]) {
+  const sb = requireSupabase();
+  const { error: deleteError } = await sb.from("milestone_configs").delete().neq("id", "00000000-0000-0000-0000-000000000000");
+  if (deleteError) throw deleteError;
+  if (milestones.length) {
+    const { error } = await sb.from("milestone_configs").insert(milestones.map((m, i) => ({ id: m.id, views: Math.max(1, Math.floor(Number(m.views))), reward_rupees: Math.max(0, Number(m.rewardRupees)), sort_order: i, active: m.active !== false })));
+    if (error) throw error;
+  }
+  await loadDB();
+  return remoteCache.milestones;
+}
 
 export async function getWatchedContentIds(userId: string) {
   const sb = requireSupabase();

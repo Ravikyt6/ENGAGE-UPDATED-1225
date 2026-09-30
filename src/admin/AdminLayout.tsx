@@ -6,6 +6,7 @@ import {
   Megaphone,
   Menu,
   Settings,
+  Trophy,
   Users,
   WalletCards,
   X,
@@ -48,6 +49,11 @@ export default function AdminLayout() {
       to: "/admin/withdrawals",
       label: "Withdrawals",
       icon: WalletCards,
+    },
+    {
+      to: "/admin/milestones",
+      label: "Milestones",
+      icon: Trophy,
     },
     {
       to: "/admin/settings",

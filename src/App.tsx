@@ -2,6 +2,7 @@ import AdminCampaigns from "@/admin/AdminCampaigns";
 import AdminDashboard from "@/admin/AdminDashboard";
 import AdminLayout from "@/admin/AdminLayout";
 import AdminSettings from "@/admin/AdminSettings";
+import AdminMilestones from "@/admin/AdminMilestones";
 import AdminUsers from "@/admin/AdminUsers";
 import AdminWithdrawals from "@/admin/AdminWithdrawals";
 import Protected from "@/components/Protected";
@@ -180,6 +181,7 @@ function RoutesView() {
           <Route path=":userId" element={<AdminUsers />} />
         </Route>
         <Route path="withdrawals" element={<AdminWithdrawals />} />
+        <Route path="milestones" element={<AdminMilestones />} />
         <Route path="settings" element={<AdminSettings />} />
       </Route>
       <Route path="*" element={<Navigate to="/video" replace />} />

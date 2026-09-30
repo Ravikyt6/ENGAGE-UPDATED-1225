@@ -66,11 +66,27 @@ export default function ShortsPage(){
   const [autoplay,setAutoplay]=useState(true);
   const [hasStarted,setHasStarted]=useState(false);
   const [toast,setToast]=useState("");
+  const [milestoneViews,setMilestoneViews]=useState(0);
+  const [milestoneCompleted,setMilestoneCompleted]=useState<number[]>([]);
 
   const last=useRef(0);
   const intervalAdShown=useRef(false);
   const endAdShown=useRef(false);
   const qualificationPending=useRef(false);
+
+ const loadMilestones=React.useCallback(()=>{
+   if(!user?.id) return;
+   try{
+     const state=JSON.parse(localStorage.getItem("engage_view_milestones_v1")||"{}") as Record<string,number[]>;
+     const completed=Array.isArray(state[user.id])?state[user.id]:[];
+     const total=Object.keys(localStorage).filter(key=>key.startsWith("engage_campaign_qualification_") && key.endsWith(`_${user.id}`)).length;
+     setMilestoneViews(total);
+     setMilestoneCompleted(completed);
+   }catch{ setMilestoneViews(0); setMilestoneCompleted([]); }
+ },[user?.id]);
+
+ useEffect(()=>{ loadMilestones(); },[loadMilestones]);
+
 
   useEffect(()=>{
     if(!user?.id) return;
@@ -173,6 +189,7 @@ export default function ShortsPage(){
 
     try{
       await dataProvider.qualify(campaign.id,user.id);
+      loadMilestones();
       await dataProvider.markContentWatched(user.id,s.id);
 
       setWatchedIds(ids=>
@@ -182,12 +199,7 @@ export default function ShortsPage(){
       await data.refresh();
       setQualified(true);
 
-      const coins=Number(campaign.coinRewardPerUser||0);
-      const dollars=Number(campaign.dollarRewardPerUser||0);
-
-      setToast(
-        `+${Math.round(coins).toLocaleString()} coins and ₹${dollars.toFixed(2)} added to your wallet`
-      );
+      setToast(`Qualified view added • milestone progress updated`);
 
       window.setTimeout(()=>setToast(""),4500);
     }catch(e){
@@ -342,43 +354,34 @@ export default function ShortsPage(){
         </div>
       </div>
 
-      {campaign&&(
-        <div className="short-reward-card">
-          <div className="short-reward-main">
-            <div className="short-reward-icon">🪙</div>
-            <div>
-              <strong>Watch & Earn</strong>
-              <span>Complete {target}s to qualify</span>
-            </div>
-          </div>
-
-          <div className="short-reward-values">
-            <div className="short-reward-coins">
-              <strong>
-                +{Math.round(
-                  Number(campaign.coinRewardPerUser||0)
-                ).toLocaleString()}
-              </strong>
-              <span>COINS</span>
-            </div>
-
-            <div className="short-reward-divider"/>
-
-            <div className="short-reward-dollar">
-              <strong>
-                +₹{Number(
-                  campaign.dollarRewardPerUser||0
-                ).toFixed(2)}
-              </strong>
-              <span>INR REWARD</span>
-            </div>
-          </div>
-        </div>
-      )}
+      {campaign&&(() => {
+     const milestoneDefs = (data.milestones || []).filter((m:any) => m.active !== false && Number(m.views) > 0 && Number(m.rewardRupees) > 0).map((m:any) => ({ views:Number(m.views), reward:Number(m.rewardRupees) })).sort((a:any,b:any)=>a.views-b.views);
+     const activeMilestone = milestoneDefs.find((m) => !milestoneCompleted.includes(m.views)) || null;
+     const milestoneProgress = activeMilestone ? Math.min(100, Math.round((milestoneViews / activeMilestone.views) * 100)) : 100;
+     return <div className="watch-reward-card">
+       <div className="watch-reward-head">
+         <div className="watch-reward-icon">🏆</div>
+         <div className="watch-reward-title"><strong>{activeMilestone ? "Next View Milestone" : "Milestones Completed"}</strong><span>{activeMilestone ? "Complete qualified views to unlock your next bonus" : "All available view milestones are complete"}</span></div>
+         <div className="watch-reward-count">{milestoneViews}</div>
+       </div>
+       {activeMilestone ? (
+         <>
+           <div className="watch-reward-progress-row">
+             <div className="watch-reward-label"><b>{activeMilestone.views} views</b><span>₹{activeMilestone.reward} bonus</span></div>
+             <div className="watch-reward-progress"><div><i style={{width:`${milestoneProgress}%`}} /></div><small>{Math.min(milestoneViews,activeMilestone.views)}/{activeMilestone.views}</small></div>
+             <strong>₹{activeMilestone.reward}</strong>
+           </div>
+           <div className="watch-reward-note">Complete this video to add one qualified view toward this milestone.</div>
+         </>
+       ) : (
+         <div className="watch-reward-complete">✓ All view milestones completed</div>
+       )}
+     </div>;
+   })()}
 
       {qualified&&(
         <div className="qualified">
-          ✓ Short completed — reward credited
+          ✓ Short completed — milestone progress updated
         </div>
       )}
 
@@ -868,4 +871,69 @@ const PAGE_CSS=String.raw`
     margin-right:auto;
   }
 }
+
+
+
+
+
+/* Shared milestone card — VIDEO / SHORTS / LIVE use the same layout. */
+.watch-reward-card{
+  width:100%; box-sizing:border-box; display:flex; align-items:center; justify-content:space-between;
+  gap:12px; padding:12px; margin:12px 0; border-radius:11px;
+  background:linear-gradient(135deg,#fff8f8,#fff); border:1px solid #ffd1d1;
+  box-shadow:0 2px 8px rgba(0,0,0,.06);
+}
+.reward-main{display:flex; align-items:center; gap:9px; min-width:0}
+.reward-icon{width:38px;height:38px;display:grid;place-items:center;border-radius:10px;background:#fff0bf;font-size:19px;flex:0 0 38px}
+.reward-main strong{display:block;color:#e63232;font-size:16px;font-weight:950}
+.reward-main span{display:block;margin-top:3px;color:#777;font-size:9px}
+.reward-values{display:flex;align-items:center;justify-content:flex-end;gap:12px;flex:none}
+.reward-dollar{text-align:right;flex:none}
+.reward-dollar strong{display:block;color:#159447;font-size:17px;font-weight:950}
+.reward-dollar span{display:block;margin-top:2px;color:#999;font-size:8px;font-weight:800;white-space:nowrap}
+.reward-divider{width:1px;height:28px;background:#e5e5e5}
+@media(max-width:560px){
+  .watch-reward-card{gap:8px;padding:10px}
+  .reward-main{gap:7px}
+  .reward-icon{width:34px;height:34px;flex-basis:34px;font-size:17px}
+  .reward-main strong{font-size:14px}
+  .reward-main span{font-size:8px}
+  .reward-values{gap:8px}
+  .reward-dollar strong{font-size:14px}
+  .reward-dollar span{font-size:7px}
+  .reward-divider{height:24px}
+}
+
+/* FINAL MILESTONE UI — same as VIDEO reference across VIDEO / SHORTS / LIVE */
+.watch-reward-card{
+  display:block !important;
+  width:100%; box-sizing:border-box; margin:12px 0; padding:14px 16px;
+  border:1px solid #ffd1d1; border-radius:12px; background:#fff;
+  box-shadow:0 2px 8px rgba(0,0,0,.04); color:#222;
+}
+.watch-reward-head{display:flex;align-items:center;gap:9px;min-width:0}
+.watch-reward-icon{width:38px;height:38px;flex:0 0 38px;display:grid;place-items:center;border-radius:10px;background:#fff0bf;font-size:19px}
+.watch-reward-title{min-width:0;flex:1}
+.watch-reward-title strong{display:block;color:#e63232;font-size:16px;font-weight:950;line-height:1.15}
+.watch-reward-title span{display:block;margin-top:3px;color:#777;font-size:9px;line-height:1.25}
+.watch-reward-count{min-width:32px;padding:7px 8px;border-radius:8px;background:#fff1f1;color:#111;text-align:center;font-size:12px;font-weight:900}
+.watch-reward-progress-row{display:grid;grid-template-columns:115px 1fr auto;align-items:center;gap:9px;margin-top:10px}
+.watch-reward-label b,.watch-reward-label span{display:block}
+.watch-reward-label b{font-size:10px;font-weight:900}
+.watch-reward-label span{margin-top:2px;color:#888;font-size:8px}
+.watch-reward-progress>div{height:7px;background:#eee;border-radius:99px;overflow:hidden}
+.watch-reward-progress i{display:block;height:100%;background:#ed3434;border-radius:99px}
+.watch-reward-progress small{display:block;margin-top:3px;text-align:right;color:#888;font-size:7px}
+.watch-reward-progress-row>strong{min-width:40px;color:#159447;text-align:right;font-size:13px;font-weight:950}
+.watch-reward-note{margin-top:9px;color:#777;font-size:8px;line-height:1.4}
+.watch-reward-complete{margin-top:10px;padding:12px;border-radius:9px;background:#eafff1;color:#098b46;text-align:center;font-size:10px;font-weight:900}
+@media(max-width:560px){
+  .watch-reward-card{padding:12px}
+  .watch-reward-progress-row{grid-template-columns:90px 1fr auto;gap:7px}
+  .watch-reward-title strong{font-size:14px}
+  .watch-reward-title span{font-size:8px}
+  .watch-reward-icon{width:34px;height:34px;flex-basis:34px;font-size:17px}
+}
 `;
+
+

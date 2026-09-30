@@ -66,6 +66,14 @@ export interface Campaign {
   creationRequestId?: string;
 }
 
+export interface MilestoneConfig {
+  id: string;
+  views: number;
+  rewardRupees: number;
+  sortOrder: number;
+  active: boolean;
+}
+
 export interface Settings {
   rewardPerUser: number;
   campaignCreationCost: number;
@@ -82,6 +90,10 @@ export interface Settings {
   minShortSeconds: number;
   maxShortSeconds: number;
   viewerRewardUsdPerCoin?: number;
+  milestone1Views: number;
+  milestone1RewardRupees: number;
+  milestone2Views: number;
+  milestone2RewardRupees: number;
 }
 
 export interface Wallet {
@@ -115,4 +127,5 @@ export interface DB {
   campaigns: Campaign[];
   wallets: Record<string, Wallet>;
   settings: Settings;
+  milestones: MilestoneConfig[];
 }

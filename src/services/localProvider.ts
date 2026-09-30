@@ -1,5 +1,6 @@
 import type {
   DB,
+  MilestoneConfig,
   User,
   Campaign,
   Content,
@@ -17,6 +18,10 @@ const WATCH_HISTORY_KEY = "engage_content_watch_history_v1";
 
 const WALLET_TRANSACTIONS_KEY = "engage_wallet_transactions_v1";
 const SITE_PAGES_KEY = "engage_site_pages_v1";
+const VIEW_MILESTONE_KEY = "engage_view_milestones_v1";
+
+
+const COINS_PER_RUPEE = 5000;
 
 const DEFAULT_SITE_PAGES: Record<SitePageSlug, SitePage> = {
   privacy: { slug: "privacy", title: "Privacy Policy", content: "" },
@@ -128,6 +133,7 @@ export function getDB(): DB {
     ...defaultSettings,
     ...db.settings,
   };
+  db.milestones = Array.isArray(db.milestones) && db.milestones.length ? db.milestones : (seedDB.milestones || []);
 
   db.campaigns = (db.campaigns || []).map((c: any) => ({
     ...c,
@@ -344,11 +350,59 @@ export function qualify(campaignId: string, userId: string) {
   campaign.coinsPaid += campaign.coinRewardPerUser;
   campaign.dollarsPaid += campaign.dollarRewardPerUser;
 
+  // User-level view milestones are cumulative across qualified campaign views.
+  // Each milestone is paid only once per account.
+  try {
+    const milestoneState = JSON.parse(
+      localStorage.getItem(VIEW_MILESTONE_KEY) || "{}"
+    ) as Record<string, number[]>;
+    const completed = new Set<number>(milestoneState[userId] || []);
+    const totalQualifiedViews = Object.keys(localStorage).filter((key) =>
+      key.startsWith(`engage_campaign_qualification_`) &&
+      key.endsWith(`_${userId}`)
+    ).length;
+
+    const milestones = (db.milestones || [])
+      .filter((m: MilestoneConfig) => m.active !== false && Number(m.views) > 0 && Number(m.rewardRupees) > 0)
+      .sort((a: MilestoneConfig, b: MilestoneConfig) => Number(a.views) - Number(b.views));
+
+    for (const milestone of milestones) {
+      if (totalQualifiedViews >= milestone.views && !completed.has(milestone.views)) {
+        const milestoneCoins = milestone.rewardRupees * COINS_PER_RUPEE;
+        wallet.coins += milestoneCoins;
+        wallet.earnings += milestone.rewardRupees;
+        addWalletTransaction(userId, {
+          id: crypto.randomUUID(),
+          type: "bonus",
+          coins: milestoneCoins,
+          balanceAfter: wallet.coins,
+          description: `${milestone.views} qualified views milestone reward: ₹${milestone.rewardRupees}`,
+          referenceId: `view-milestone-${milestone.views}`,
+          createdAt: new Date().toISOString(),
+        });
+        completed.add(milestone.views);
+      }
+    }
+
+    milestoneState[userId] = Array.from(completed);
+    localStorage.setItem(VIEW_MILESTONE_KEY, JSON.stringify(milestoneState));
+    db.wallets[userId] = wallet;
+  } catch {
+    // Never block the campaign reward if local milestone persistence fails.
+  }
+
   if (campaign.currentViews >= campaign.targetViews) {
     campaign.status = "completed";
   }
 
   saveDB(db);
+}
+
+export function updateMilestones(milestones: MilestoneConfig[]) {
+  const db = getDB();
+  db.milestones = milestones.map((m, i) => ({ ...m, sortOrder: i, active: m.active !== false }));
+  saveDB(db);
+  return db.milestones;
 }
 
 export function updateSettings(patch: Partial<Settings>) {
