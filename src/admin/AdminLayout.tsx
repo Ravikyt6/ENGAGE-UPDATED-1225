@@ -7,6 +7,7 @@ import {
   Menu,
   Settings,
   Trophy,
+  Package,
   Users,
   WalletCards,
   X,
@@ -54,6 +55,11 @@ export default function AdminLayout() {
       to: "/admin/milestones",
       label: "Milestones",
       icon: Trophy,
+    },
+    {
+      to: "/admin/packages",
+      label: "Packages",
+      icon: Package,
     },
     {
       to: "/admin/settings",

@@ -46,21 +46,30 @@ export interface Content {
   thumbnail?: string;
 }
 
+export interface CampaignPackage {
+  id: string;
+  name: string;
+  priceRupees: number;
+  targetViews: number;
+  totalWatchMinutes: number;
+  active: boolean;
+  sortOrder: number;
+}
+
 export interface Campaign {
   id: string;
   creatorId: string;
   title: string;
   type: ContentType;
   contentId: string;
+  packageId: string;
+  packageName: string;
+  packagePrice: number;
   targetViews: number;
+  totalWatchMinutes: number;
   requiredWatchSeconds: number;
-  coinRewardPerUser: number;
-  dollarRewardPerUser: number;
-  creationCost: number;
   currentViews: number;
   qualifiedUsers: number;
-  coinsPaid: number;
-  dollarsPaid: number;
   status: CampaignStatus;
   createdAt: string;
   creationRequestId?: string;
@@ -75,8 +84,6 @@ export interface MilestoneConfig {
 }
 
 export interface Settings {
-  rewardPerUser: number;
-  campaignCreationCost: number;
   autoplayEnabled: boolean;
   adEnabled: boolean;
   socialBarEnabled: boolean;
@@ -90,15 +97,13 @@ export interface Settings {
   minShortSeconds: number;
   maxShortSeconds: number;
   viewerRewardUsdPerCoin?: number;
-  milestone1Views: number;
-  milestone1RewardRupees: number;
-  milestone2Views: number;
-  milestone2RewardRupees: number;
 }
 
 export interface Wallet {
   coins: number;
   earnings: number;
+  packageViews?: number;
+  packageWatchMinutes?: number;
 }
 
 export type WalletTransactionType =
@@ -128,4 +133,5 @@ export interface DB {
   wallets: Record<string, Wallet>;
   settings: Settings;
   milestones: MilestoneConfig[];
+  packages: CampaignPackage[];
 }

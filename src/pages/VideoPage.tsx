@@ -223,9 +223,6 @@ export default function VideoPage(){
 
      setQualified(true);
 
-     const coins=Number(campaign.coinRewardPerUser||0);
-     const dollars=Number(campaign.dollarRewardPerUser||0);
-
      setRewardToast(
        `Qualified view added • milestone progress updated`
      );

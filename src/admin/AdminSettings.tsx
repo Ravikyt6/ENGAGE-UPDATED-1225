@@ -1,5 +1,5 @@
 import React, { useState } from "react";
-import { Coins, Database, Megaphone, PlayCircle, Radio, Save, ShieldCheck, Timer, Trophy, Zap } from "lucide-react";
+import { Database, Megaphone, PlayCircle, Radio, Save, Timer, Trophy, Zap } from "lucide-react";
 import { dataProvider } from "@/services/dataProvider";
 import { useData } from "@/context/DataContext";
 
@@ -75,7 +75,7 @@ export default function AdminSettings() {
       <div className="admin-head settings-page-head">
         <div>
           <h1>Settings</h1>
-          <p>Manage campaign economy, advertisements, autoplay and application storage.</p>
+          <p>Manage packages, advertisements, autoplay and application storage.</p>
         </div>
       </div>
 
@@ -101,85 +101,6 @@ export default function AdminSettings() {
             <button className={mode === "local" ? "active" : ""} onClick={() => switchMode("local")}>LOCAL</button>
             <button className={mode === "supabase" ? "active live" : ""} onClick={() => switchMode("supabase")}>LIVE</button>
           </div>
-        </div>
-      </section>
-
-      {/* CAMPAIGN ECONOMY */}
-      <section className="settings-section">
-        <div className="settings-section-heading">
-          <div className="settings-section-icon economy-icon"><Coins size={18} /></div>
-          <div>
-            <h2>Campaign Coin Calculation</h2>
-            <p>Creator campaign cost and viewer rewards are calculated automatically.</p>
-          </div>
-        </div>
-
-        <div className="economy-rule-card">
-          <div className="economy-rule-main">
-            <div className="economy-rule-icon"><ShieldCheck size={18} /></div>
-            <div>
-              <b>FIXED PLATFORM ECONOMY</b>
-              <span>Creators select target users and required watch time. The final campaign cost is calculated automatically, with the internal platform margin already included.</span>
-            </div>
-          </div>
-
-          <div className="economy-formula">
-            <span>REWARD / USER</span>
-            <strong>(Watch Seconds ÷ 30) × 5 Coins</strong>
-          </div>
-
-          <div className="economy-formula">
-            <span>FINAL CAMPAIGN COST</span>
-            <strong>Target Users × Reward / User × Internal Margin</strong>
-          </div>
-        </div>
-
-        <div className="economy-stat-grid">
-          <div className="economy-stat">
-            <small>30 SECONDS</small>
-            <b>5 Coins</b>
-            <span>per qualified viewer</span>
-          </div>
-          <div className="economy-stat">
-            <small>60 SECONDS</small>
-            <b>10 Coins</b>
-            <span>per qualified viewer</span>
-          </div>
-          <div className="economy-stat">
-            <small>120 SECONDS</small>
-            <b>20 Coins</b>
-            <span>per qualified viewer</span>
-          </div>
-          <div className="economy-stat">
-            <small>180 SECONDS</small>
-            <b>30 Coins</b>
-            <span>per qualified viewer</span>
-          </div>
-        </div>
-
-        <div className="economy-examples">
-          <div className="economy-example-title">LIVE CALCULATION EXAMPLES</div>
-          <div className="economy-example-row">
-            <span>100 users • 30 sec</span>
-            <b>575 Coins</b>
-          </div>
-          <div className="economy-example-row">
-            <span>100 users • 60 sec</span>
-            <b>1,150 Coins</b>
-          </div>
-          <div className="economy-example-row">
-            <span>100 users • 120 sec</span>
-            <b>2,300 Coins</b>
-          </div>
-          <div className="economy-example-row">
-            <span>100 users • 180 sec</span>
-            <b>3,450 Coins</b>
-          </div>
-        </div>
-
-        <div className="economy-note">
-          <b>Viewer reward value</b>
-          <span>1 Coin = ₹0.0002 internal viewer reward value. Only qualified viewers receive the calculated reward. The creator sees only the final campaign cost.</span>
         </div>
       </section>
 

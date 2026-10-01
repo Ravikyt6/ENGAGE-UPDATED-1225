@@ -6,7 +6,7 @@ import React from 'react';import {dataProvider} from '@/services/dataProvider';e
     document.head.appendChild(style);
     return () => style.remove();
   }, []);
-const db=dataProvider.getDB();return <><div className="admin-head"><div><h1>Dashboard</h1><p>ENGAGE control center</p></div></div><div className="admin-stats"><div><b>{db.users.length}</b><span>Users</span></div><div><b>{db.contents.length}</b><span>Content</span></div><div><b>{db.campaigns.length}</b><span>Campaigns</span></div><div><b>{db.campaigns.filter(c=>c.status==='active').length}</b><span>Active</span></div></div><div className="admin-panel"><h2>Global Rules</h2><p>Reward: <b>{db.settings.rewardPerUser} coins/user</b></p><p>Campaign cost: <b>{db.settings.campaignCreationCost} coins</b></p><p>Ad popup: <b>every {db.settings.adIntervalSeconds}s playback</b></p></div></>}
+const db=dataProvider.getDB();return <><div className="admin-head"><div><h1>Dashboard</h1><p>ENGAGE control center</p></div></div><div className="admin-stats"><div><b>{db.users.length}</b><span>Users</span></div><div><b>{db.contents.length}</b><span>Content</span></div><div><b>{db.campaigns.length}</b><span>Campaigns</span></div><div><b>{db.campaigns.filter(c=>c.status==='active').length}</b><span>Active</span></div></div><div className="admin-panel"><h2>Global Rules</h2><p>Campaigns: <b>{db.packages.length} packages</b></p><p>Viewer rewards: <b>milestone based</b></p><p>Ad popup: <b>every {db.settings.adIntervalSeconds}s playback</b></p></div></>}
 
 /* ===== ADMINDASHBOARD CSS — kept inside this file ===== */
 const PAGE_CSS = String.raw`

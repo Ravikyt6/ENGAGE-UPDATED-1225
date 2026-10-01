@@ -8,9 +8,10 @@ import type {
   ContentType,
   SitePage,
   SitePageSlug,
+  CampaignPackage,
 } from "@/types";
 import { seedDB, defaultSettings } from "@/data/seed";
-import { calculateCampaignEconomy } from "@/services/campaignEconomy";
+import { DEFAULT_CAMPAIGN_PACKAGES, getRequiredWatchSeconds } from "@/services/campaignPackages";
 
 const KEY = "engage_updated_db_v1";
 
@@ -134,12 +135,11 @@ export function getDB(): DB {
     ...db.settings,
   };
   db.milestones = Array.isArray(db.milestones) && db.milestones.length ? db.milestones : (seedDB.milestones || []);
+  db.packages = Array.isArray(db.packages) && db.packages.length ? db.packages : (seedDB.packages || DEFAULT_CAMPAIGN_PACKAGES);
 
   db.campaigns = (db.campaigns || []).map((c: any) => ({
     ...c,
     qualifiedUsers: c.qualifiedUsers || 0,
-    coinsPaid: c.coinsPaid || 0,
-    dollarsPaid: c.dollarsPaid || 0,
   }));
 
   return db;
@@ -163,6 +163,8 @@ export function ensureUser(user: User) {
     db.wallets[user.id] = {
       coins: user.role === "creator" ? 5000 : 1000,
       earnings: 0,
+      packageViews: 0,
+      packageWatchMinutes: 0,
     };
   }
 
@@ -196,6 +198,41 @@ export function listCampaigns(userId?: string) {
   );
 }
 
+
+export function updateCampaignPackage(id: string, patch: Partial<CampaignPackage>) {
+  const db = getDB();
+  const pkg = (db.packages || []).find((x: CampaignPackage) => x.id === id);
+  if (!pkg) throw new Error("Package not found.");
+  Object.assign(pkg, patch);
+  db.packages = [...(db.packages || [])].sort((a,b) => Number(a.sortOrder||0)-Number(b.sortOrder||0));
+  saveDB(db);
+  return pkg;
+}
+
+export function purchaseCampaignPackage(input: any) {
+  const db = getDB();
+  const creatorId = String(input.creatorId || "");
+  const pkg = (db.packages || DEFAULT_CAMPAIGN_PACKAGES).find((x: CampaignPackage) => x.id === input.packageId || x.id === String(input.packageId));
+  if (!pkg || !pkg.active) throw new Error("Selected package is unavailable.");
+  const user = db.users.find((u) => u.id === creatorId);
+  if (!user || (user.role !== "creator" && user.role !== "admin" && user.accountType !== "promotion")) throw new Error("Only creator accounts can buy campaign packages.");
+  const wallet: any = db.wallets[creatorId] || { coins: 0, earnings: 0, packageViews: 0, packageWatchMinutes: 0 };
+  wallet.packageViews = Number(wallet.packageViews || 0) + Number(pkg.targetViews || 0);
+  wallet.packageWatchMinutes = Number(wallet.packageWatchMinutes || 0) + Number(pkg.totalWatchMinutes || 0);
+  db.wallets[creatorId] = wallet;
+  const purchases = JSON.parse(localStorage.getItem("engage_package_purchases_v1") || "{}");
+  const row = { id: crypto.randomUUID(), packageId: pkg.id, packageName: pkg.name, priceRupees: pkg.priceRupees, viewsCredited: pkg.targetViews, watchMinutesCredited: pkg.totalWatchMinutes, status: "paid", createdAt: new Date().toISOString() };
+  purchases[creatorId] = [row, ...(purchases[creatorId] || [])].slice(0, 50);
+  localStorage.setItem("engage_package_purchases_v1", JSON.stringify(purchases));
+  addWalletTransaction(creatorId, { id: crypto.randomUUID(), type: "purchase", coins: 0, balanceAfter: wallet.coins, description: `${pkg.name} package purchased: ${pkg.targetViews} views + ${pkg.totalWatchMinutes} watch minutes`, referenceId: row.id, createdAt: row.createdAt });
+  saveDB(db);
+  return row;
+}
+
+export function getCreatorPackagePurchases(userId: string) {
+  try { const all = JSON.parse(localStorage.getItem("engage_package_purchases_v1") || "{}"); return all[userId] || []; } catch { return []; }
+}
+
 export function createCampaign(input: any) {
   const db = getDB();
   const creatorId = String(input.creatorId || "");
@@ -204,63 +241,28 @@ export function createCampaign(input: any) {
     throw new Error("Only creator/promotion accounts can create campaigns.");
   }
   const requestId = String(input.creationRequestId || crypto.randomUUID());
-  const economy = calculateCampaignEconomy(
-    Number(input.targetViews),
-    Number(input.requiredWatchSeconds)
-  );
-
-  const existing = db.campaigns.find(
-    (campaign) => campaign.creationRequestId === requestId
-  );
+  const existing = db.campaigns.find((campaign) => campaign.creationRequestId === requestId);
   if (existing) return existing;
-
-  const wallet = db.wallets[creatorId] || {
-    coins: 0,
-    earnings: 0,
-  };
-
-  if (wallet.coins < economy.campaignCost) {
-    throw new Error(
-      `Insufficient coins. ${economy.campaignCost.toLocaleString()} coins required.`
-    );
-  }
-
-  const campaign: Campaign = {
-    id: crypto.randomUUID(),
-    creatorId,
-    title: input.title,
-    type: input.type,
-    contentId: input.contentId || "",
-    targetViews: economy.targetUsers,
-    requiredWatchSeconds: economy.requiredWatchSeconds,
-    coinRewardPerUser: economy.rewardPerUser,
-    dollarRewardPerUser: economy.rewardPerUser * 0.0002,
-    creationCost: economy.campaignCost,
-    currentViews: 0,
-    qualifiedUsers: 0,
-    coinsPaid: 0,
-    dollarsPaid: 0,
-    status: "active",
-    createdAt: new Date().toISOString(),
-    creationRequestId: requestId,
-  };
-
-  // Local development mode: validate first, then perform the single deduction
-  // and campaign insert as one synchronous operation.
-  wallet.coins -= economy.campaignCost;
+  const targetViews = Math.floor(Number(input.targetViews || 0));
+  const watchMinutes = Number(input.watchMinutes || 0);
+  const wallet: any = db.wallets[creatorId] || { coins: 0, earnings: 0, packageViews: 0, packageWatchMinutes: 0 };
+  if (targetViews < 1) throw new Error("Enter at least 1 view.");
+  if (watchMinutes <= 0) throw new Error("Enter a valid watch-time requirement.");
+  if (Number(wallet.packageViews || 0) < targetViews) throw new Error(`Insufficient package view balance. Available: ${Number(wallet.packageViews || 0).toLocaleString()} views.`);
+  if (Number(wallet.packageWatchMinutes || 0) < watchMinutes) throw new Error(`Insufficient package watch-time balance. Available: ${Number(wallet.packageWatchMinutes || 0)} minutes.`);
+  const requiredWatchSeconds = Math.max(1, Math.ceil((watchMinutes * 60) / targetViews));
+  if (input.type === "shorts" && requiredWatchSeconds >= 60) throw new Error("This campaign requires 60 seconds or more per Short view and cannot be used for Shorts.");
+  wallet.packageViews = Number(wallet.packageViews || 0) - targetViews;
+  wallet.packageWatchMinutes = Number(wallet.packageWatchMinutes || 0) - watchMinutes;
   db.wallets[creatorId] = wallet;
-  addWalletTransaction(creatorId, {
-    id: crypto.randomUUID(),
-    type: "spend",
-    coins: economy.campaignCost,
-    balanceAfter: wallet.coins,
-    description: `Campaign creation: ${input.title}`,
-    referenceId: campaign.id,
-    createdAt: new Date().toISOString(),
-  });
+  const campaign: Campaign = {
+    id: crypto.randomUUID(), creatorId, packageId: "balance", packageName: "Package Balance", packagePrice: 0,
+    title: input.title, type: input.type, contentId: input.contentId || "", targetViews, totalWatchMinutes: watchMinutes,
+    requiredWatchSeconds, currentViews: 0, qualifiedUsers: 0, status: "active", createdAt: new Date().toISOString(), creationRequestId: requestId,
+  };
   db.campaigns.unshift(campaign);
+  addWalletTransaction(creatorId, { id: crypto.randomUUID(), type: "spend", coins: 0, balanceAfter: wallet.coins, description: `Campaign balance used: ${targetViews} views + ${watchMinutes} watch minutes`, referenceId: campaign.id, createdAt: new Date().toISOString() });
   saveDB(db);
-
   return campaign;
 }
 
@@ -274,7 +276,7 @@ export function deleteCampaign(campaignId: string, creatorId: string) {
   }
 
   const remainingUsers = Math.max(0, Number(campaign.targetViews || 0) - Number(campaign.currentViews || 0));
-  const refundableCoins = Math.max(0, remainingUsers * Number(campaign.coinRewardPerUser || 0));
+  const refundableCoins = 0;
   const wallet = db.wallets[creatorId] || { coins: 0, earnings: 0 };
   wallet.coins = Number(wallet.coins || 0) + refundableCoins;
   db.wallets[creatorId] = wallet;
@@ -325,30 +327,12 @@ export function qualify(campaignId: string, userId: string) {
     return;
   }
 
-  const wallet = db.wallets[userId] || {
-    coins: 0,
-    earnings: 0,
-  };
-
-  wallet.coins += campaign.coinRewardPerUser;
-  wallet.earnings += campaign.dollarRewardPerUser;
-
+  const wallet = db.wallets[userId] || { coins: 0, earnings: 0 };
   db.wallets[userId] = wallet;
-  addWalletTransaction(userId, {
-    id: crypto.randomUUID(),
-    type: "earning",
-    coins: campaign.coinRewardPerUser,
-    balanceAfter: wallet.coins,
-    description: `Campaign viewer reward: ${campaign.title}`,
-    referenceId: campaign.id,
-    createdAt: new Date().toISOString(),
-  });
   localStorage.setItem(qualificationKey, "1");
 
   campaign.currentViews += 1;
   campaign.qualifiedUsers += 1;
-  campaign.coinsPaid += campaign.coinRewardPerUser;
-  campaign.dollarsPaid += campaign.dollarRewardPerUser;
 
   // User-level view milestones are cumulative across qualified campaign views.
   // Each milestone is paid only once per account.

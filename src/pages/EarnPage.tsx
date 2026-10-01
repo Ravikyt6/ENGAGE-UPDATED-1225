@@ -29,11 +29,8 @@ export default function EarnPage() {
 
         <section className="earn-milestones">
           <div className="earn-section-title"><h2>View Milestones</h2><span>REWARDS</span></div>
-          {[
-            { views: Number(data.adminSettings?.milestone1Views || 50), reward: Number(data.adminSettings?.milestone1RewardRupees || 10) },
-            { views: Number(data.adminSettings?.milestone2Views || 100), reward: Number(data.adminSettings?.milestone2RewardRupees || 20) },
-          ].filter((m) => m.views > 0 && m.reward > 0).map((m) => (
-            <div className="milestone-row" key={`${m.views}-${m.reward}`}><div><b>{m.views} qualified views</b><small>Milestone reward</small></div><strong>₹{m.reward}</strong></div>
+          {(data.milestones || []).filter((m: any) => m.views > 0 && m.rewardRupees > 0).map((m: any) => (
+            <div className="milestone-row" key={`${m.views}-${m.rewardRupees}`}><div><b>{m.views} qualified views</b><small>Milestone reward</small></div><strong>₹{m.rewardRupees}</strong></div>
           ))}
           <p className="milestone-note">Milestones are cumulative across eligible campaign views. Each milestone is rewarded once.</p>
         </section>

@@ -3,6 +3,7 @@ import AdminDashboard from "@/admin/AdminDashboard";
 import AdminLayout from "@/admin/AdminLayout";
 import AdminSettings from "@/admin/AdminSettings";
 import AdminMilestones from "@/admin/AdminMilestones";
+import AdminPackages from "@/admin/AdminPackages";
 import AdminUsers from "@/admin/AdminUsers";
 import AdminWithdrawals from "@/admin/AdminWithdrawals";
 import Protected from "@/components/Protected";
@@ -182,6 +183,7 @@ function RoutesView() {
         </Route>
         <Route path="withdrawals" element={<AdminWithdrawals />} />
         <Route path="milestones" element={<AdminMilestones />} />
+        <Route path="packages" element={<AdminPackages />} />
         <Route path="settings" element={<AdminSettings />} />
       </Route>
       <Route path="*" element={<Navigate to="/video" replace />} />

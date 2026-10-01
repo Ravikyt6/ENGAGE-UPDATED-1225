@@ -2,7 +2,7 @@ import Layout from "@/components/Layout";
 import { useAuth } from "@/context/AuthContext";
 import { useData } from "@/context/DataContext";
 import { Ban, CheckCircle2, Clock3, Coins, Eye, Link2, Loader2, PlaySquare, Radio, Video } from "lucide-react";
-import { calculateCampaignEconomy, formatWatchTime } from "@/services/campaignEconomy";
+import { formatWatchTime } from "@/services/campaignPackages";
 import React, { useMemo, useState } from "react";
 import YouTubePlayer from "@/components/YouTubePlayer";
 
@@ -37,14 +37,13 @@ export default function CreateCampaignPage() {
 
   const { user } = useAuth();
   const data = useData();
-  const settings = data.adminSettings || { autoplayEnabled: true, adEnabled: true };
 
   const [type, setType] = useState<CampaignType>("video");
   const [url, setUrl] = useState("");
   const [title, setTitle] = useState("");
-  const [targetViews, setTargetViews] = useState(100);
-  const [watchInput, setWatchInput] = useState("30");
-  const [watchUnit, setWatchUnit] = useState<"seconds" | "minutes">("seconds");
+  const wallet = data.wallet || { packageViews: 0, packageWatchMinutes: 0 };
+  const [targetViews, setTargetViews] = useState(0);
+  const [watchMinutes, setWatchMinutes] = useState(0);
   const [creationRequestId, setCreationRequestId] = useState(() => crypto.randomUUID());
   const [loaded, setLoaded] = useState(false);
   const [fetchingContent, setFetchingContent] = useState(false);
@@ -54,34 +53,12 @@ export default function CreateCampaignPage() {
   const [success, setSuccess] = useState("");
 
   const videoId = useMemo(() => getYouTubeId(url), [url]);
-
-  const watchSeconds = useMemo(() => {
-    const value = Number(watchInput);
-    if (!Number.isFinite(value) || value <= 0) return 0;
-    return watchUnit === "minutes" ? Math.floor(value * 60) : Math.floor(value);
-  }, [watchInput, watchUnit]);
-
-  const economy = useMemo(() => {
-    try {
-      return calculateCampaignEconomy(targetViews, watchSeconds);
-    } catch {
-      return null;
-    }
-  }, [targetViews, watchSeconds]);
-
-  const campaignCost = economy?.campaignCost || 0;
-  const coinsPerViewer = economy?.rewardPerUser || 0;
-  const availableCoins = Number(data.wallet?.coins ?? 0);
-  const insufficientCoins = campaignCost > 0 && availableCoins < campaignCost;
+  const watchSeconds = targetViews > 0 && watchMinutes > 0 ? Math.max(1, Math.ceil((watchMinutes * 60) / targetViews)) : 0;
 
   const changeType = (next: CampaignType) => {
     setType(next);
     setLoaded(false);
     setError("");
-    if (next === "shorts" && watchSeconds >= 60) {
-      setWatchUnit("seconds");
-      setWatchInput("30");
-    }
   };
 
   const loadYouTube = () => {
@@ -102,23 +79,13 @@ export default function CreateCampaignPage() {
     if (!user) return setError("Please login first.");
     if (!videoId) return setError("Please enter and load a valid YouTube URL.");
     if (!title.trim()) return setError("Please enter campaign title.");
-    if (targetViews < 1) return setError("Target views must be at least 1.");
-    if (watchSeconds < 30) return setError("Required watch time must be at least 30 seconds.");
-    if (watchSeconds % 30 !== 0) return setError("Required watch time must use 30-second increments. You can enter the duration in seconds or minutes.");
-    if (type === "shorts" && watchSeconds >= 60) return setError("Shorts watch requirement must be below 60 seconds.");
+    if (targetViews < 1) return setError("Enter the number of views you want to use.");
+    if (watchMinutes <= 0) return setError("Enter the watch time you want to use.");
+    if (Number(wallet.packageViews || 0) < targetViews) return setError(`Not enough view balance. Available: ${Number(wallet.packageViews || 0).toLocaleString()} views.`);
+    if (Number(wallet.packageWatchMinutes || 0) < watchMinutes) return setError(`Not enough watch-time balance. Available: ${Number(wallet.packageWatchMinutes || 0).toLocaleString()} minutes.`);
+    if (type === "shorts" && watchSeconds >= 60) return setError("Shorts campaigns need less than 60 seconds per view. Reduce watch time or increase views.");
     if (type === "shorts" && !videoDuration) return setError("Please wait for the YouTube content duration to load before creating the Shorts campaign.");
     if (type === "shorts" && videoDuration >= 60) return setError("This content is 60 seconds or longer and is not eligible as a Short.");
-
-    let currentEconomy;
-    try {
-      currentEconomy = calculateCampaignEconomy(targetViews, watchSeconds);
-    } catch (e: any) {
-      return setError(e?.message || "Invalid campaign settings.");
-    }
-
-    if (Number(data.wallet?.coins ?? 0) < currentEconomy.campaignCost) {
-      return setError(`Insufficient coins. ${currentEconomy.campaignCost.toLocaleString()} coins required.`);
-    }
 
     try {
       setLoading(true);
@@ -129,7 +96,7 @@ export default function CreateCampaignPage() {
         youtubeUrl: url.trim(),
         youtubeVideoId: videoId,
         targetViews,
-        requiredWatchSeconds: watchSeconds,
+        watchMinutes,
         creationRequestId,
       });
       setTitle("");
@@ -138,7 +105,9 @@ export default function CreateCampaignPage() {
       setFetchingContent(false);
       setVideoDuration(0);
       setCreationRequestId(crypto.randomUUID());
-      setSuccess(`Campaign created successfully. ${currentEconomy.campaignCost.toLocaleString()} coins deducted.`);
+      setTargetViews(0);
+      setWatchMinutes(0);
+      setSuccess(`Campaign created successfully. ${targetViews.toLocaleString()} views and ${watchMinutes.toLocaleString()} watch minutes were used from your package balance.`);
       window.setTimeout(() => setSuccess(""), 4200);
     } catch (e: any) {
       setError(e?.message || "Could not create campaign.");
@@ -257,122 +226,26 @@ export default function CreateCampaignPage() {
           <label><span>Campaign Title</span></label>
           <input className="form-input create-input" value={title} onChange={(e) => setTitle(e.target.value)} placeholder="Enter campaign title" />
 
-          <div className="two-col create-criteria">
-            <div>
-              <label><Eye size={14} /> Target Users / Views</label>
-              <div className="create-number-field"><input type="number" min="1" step="1" value={targetViews} onChange={(e) => setTargetViews(Math.max(0, Math.floor(Number(e.target.value))))} /><span>USERS</span></div>
-              <small>Number of qualified viewers</small>
+          <div className="package-section balance-section">
+            <div className="package-section-head"><div><b>1. USE PACKAGE BALANCE</b><span>Your purchased packages add views and watch-time to this wallet. Enter how much you want to use for this campaign.</span></div><strong>AVAILABLE BALANCE</strong></div>
+            <div className="balance-grid">
+              <div><small>AVAILABLE VIEWS</small><b>{Number(wallet.packageViews || 0).toLocaleString()}</b><span>views</span></div>
+              <div><small>AVAILABLE WATCH TIME</small><b>{Number(wallet.packageWatchMinutes || 0).toLocaleString()}</b><span>minutes</span></div>
             </div>
-            <div>
-              <label><Clock3 size={14} /> Required Watch Time</label>
-              <div className="watch-entry-row">
-                <div className="create-number-field watch-entry-input">
-                  <input
-                    type="number"
-                    min="0.5"
-                    step={watchUnit === "minutes" ? "0.5" : "1"}
-                    value={watchInput}
-                    onChange={(e) => {
-                      setWatchInput(e.target.value);
-                      setError("");
-                    }}
-                    aria-label="Required watch time"
-                  />
-                </div>
-                <select
-                  className="watch-unit-select"
-                  value={watchUnit}
-                  onChange={(e) => {
-                    const next = e.target.value as "seconds" | "minutes";
-                    if (next === watchUnit) return;
-                    const numeric = Number(watchInput);
-                    if (Number.isFinite(numeric) && numeric > 0) {
-                      if (next === "minutes") {
-                        setWatchInput((numeric / 60).toString());
-                      } else {
-                        setWatchInput(Math.round(numeric * 60).toString());
-                      }
-                    }
-                    setWatchUnit(next);
-                    setError("");
-                  }}
-                >
-                  <option value="seconds">Seconds</option>
-                  <option value="minutes">Minutes</option>
-                </select>
-              </div>
-              <small>Enter the time yourself. Use 30-second increments so viewer rewards stay whole.</small>
-              <div className="watch-presets">
-                {[30, 60, 90, 120, 180].filter((seconds) => type !== "shorts" || seconds === 30).map((seconds) => (
-                  <button
-                    key={seconds}
-                    type="button"
-                    onClick={() => {
-                      setWatchUnit("seconds");
-                      setWatchInput(String(seconds));
-                      setError("");
-                    }}
-                  >
-                    {formatWatchTime(seconds)}
-                  </button>
-                ))}
-              </div>
+            <div className="campaign-use-grid">
+              <label><span>VIEWS TO USE</span><input type="number" min="1" max={Number(wallet.packageViews || 0)} value={targetViews || ""} onChange={e=>setTargetViews(Math.max(0,Math.floor(Number(e.target.value||0))))} placeholder="e.g. 50" /></label>
+              <label><span>WATCH TIME TO USE (MINUTES)</span><input type="number" min="0.01" max={Number(wallet.packageWatchMinutes || 0)} step="0.01" value={watchMinutes || ""} onChange={e=>setWatchMinutes(Math.max(0,Number(e.target.value||0)))} placeholder="e.g. 30" /></label>
             </div>
+            {targetViews > 0 && watchMinutes > 0 && <div className="campaign-use-summary"><span>Average required watch per user</span><b>{formatWatchTime(watchSeconds)}</b><small>Example: 50 views + 30 minutes = 36 seconds average per qualified viewer.</small></div>}
           </div>
-
-          <div className="create-cost-card">
-            <div className="create-cost-head">
-              <div className="create-cost-icon"><Coins size={19} /></div>
-              <div>
-                <span>CAMPAIGN COST</span>
-                <strong>{campaignCost.toLocaleString()} COINS</strong>
-              </div>
-            </div>
-
-            <div className="create-cost-details">
-              <div>
-                <small>TARGET USERS</small>
-                <b>{targetViews > 0 ? targetViews.toLocaleString() : "0"}</b>
-              </div>
-              <div>
-                <small>WATCH TIME</small>
-                <b>{watchSeconds >= 30 ? formatWatchTime(watchSeconds) : "—"}</b>
-              </div>
-              <div>
-                <small>REWARD / USER</small>
-                <b>{coinsPerViewer ? `${coinsPerViewer} COINS` : "—"}</b>
-              </div>
-            </div>
-
-            <div className={`create-balance-card ${insufficientCoins ? "insufficient" : "ready"}`}>
-              <div>
-                <small>YOUR COIN BALANCE</small>
-                <strong>{availableCoins.toLocaleString()} COINS</strong>
-              </div>
-              <div className="balance-status">
-                {insufficientCoins ? "NOT ENOUGH" : "READY"}
-              </div>
-            </div>
-          </div>
-
-          {insufficientCoins && (
-            <div className="insufficient-card" role="alert">
-              <div className="insufficient-icon">!</div>
-              <div>
-                <b>Insufficient Coins</b>
-                <span>You need {campaignCost.toLocaleString()} coins, but your wallet has only {availableCoins.toLocaleString()} coins.</span>
-                <small>Buy more coins before creating this campaign.</small>
-              </div>
-            </div>
-          )}
 
           {success && <div className="engage-toast success-toast"><CheckCircle2 size={18}/><div><b>Successfully Created</b><span>{success}</span></div></div>}
           {error && <div className="error create-error">{error}</div>}
 
-          <button type="button" className="primary-btn create-btn" disabled={loading || insufficientCoins || !economy} onClick={createCampaign}>
-            {loading ? <><Loader2 size={17} className="create-spin" /> CREATING...</> : <>CREATE CAMPAIGN <span>• {campaignCost.toLocaleString()} COINS</span></>}
+          <button type="button" className="primary-btn create-btn" disabled={loading || !loaded || targetViews < 1 || watchMinutes <= 0 || (type === "shorts" && watchSeconds >= 60)} onClick={createCampaign}>
+            {loading ? <><Loader2 size={17} className="create-spin" /> CREATING...</> : <>CREATE CAMPAIGN <span>• USE {targetViews || 0} VIEWS</span></>}
           </button>
-          <div className="create-safe-note">Campaign cost is calculated automatically from your target users and watch time.</div>
+          <div className="create-safe-note">Campaigns use only the views and watch-time balance already purchased in your campaign wallet.</div>
         </div>
       </div>
     </Layout>
@@ -416,6 +289,8 @@ const PAGE_CSS = String.raw`
   grid-template-columns: 1fr 1fr;
   gap: 10px;
 }
+
+.package-section{margin-top:14px;padding:14px;border:1px solid #e8e8e8;border-radius:16px;background:#fff}.package-section-head{display:flex;align-items:center;justify-content:space-between;gap:12px}.package-section-head>div{min-width:0}.package-section-head>strong{flex:none;padding:7px 9px;border-radius:999px;background:#f1e6ff;color:#7b24d4;font-size:8px}.package-section-head b,.package-section-head span{display:block}.package-section-head b{font-size:13px}.package-section-head span{margin-top:3px;color:#888;font-size:9px}.package-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:9px;margin-top:10px}.package-card{appearance:none;text-align:left;border:1px solid #e1dce6;background:#fff;border-radius:14px;padding:12px;cursor:pointer;transition:.15s}.package-card:hover{border-color:#a62bff;transform:translateY(-1px)}.package-card.selected{border:2px solid #a62bff;background:#fbf6ff;box-shadow:0 6px 18px rgba(166,43,255,.10)}.package-card.disabled{opacity:.48;cursor:not-allowed}.package-card .package-name,.package-card strong,.package-card small,.package-card em{display:block}.package-card .package-name{font-size:9px;font-weight:900;text-transform:uppercase;color:#8b2bd4}.package-card strong{margin:4px 0 7px;font-size:22px;color:#222}.package-card small{font-size:8.5px;color:#666;margin-top:3px}.package-card em{margin-top:6px;font-size:7.5px;color:#b3261e;font-style:normal;font-weight:800}.create-cost-card{margin-top:10px}.create-cost-details b{font-size:12px}.balance-grid{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:10px}.balance-grid>div{padding:12px;border:1px solid #e7e1eb;border-radius:12px;background:#fafafa}.balance-grid small,.balance-grid b,.balance-grid span{display:block}.balance-grid small{font-size:8px;color:#888;font-weight:900}.balance-grid b{margin-top:5px;font-size:19px}.balance-grid span{margin-top:2px;font-size:8px;color:#999}.campaign-use-grid{display:grid;grid-template-columns:1fr 1fr;gap:9px;margin-top:10px}.campaign-use-grid label{margin:0}.campaign-use-grid label span{display:block;font-size:8px;font-weight:900;color:#555;margin-bottom:5px}.campaign-use-grid input{width:100%;box-sizing:border-box;padding:11px;border:1px solid #ddd;border-radius:9px;background:#fff}.campaign-use-summary{margin-top:10px;padding:11px;border-radius:11px;background:#f8f2ff;border:1px solid #ead9fb}.campaign-use-summary span,.campaign-use-summary b,.campaign-use-summary small{display:block}.campaign-use-summary span{font-size:8px;color:#777}.campaign-use-summary b{margin-top:4px;font-size:17px;color:#7b24d4}.campaign-use-summary small{margin-top:4px;font-size:8px;color:#888}@media(max-width:520px){.campaign-use-grid{grid-template-columns:1fr}.balance-grid{grid-template-columns:1fr 1fr}}
 
 .youtube-preview{
   display: flex;
@@ -1272,7 +1147,7 @@ const PAGE_CSS = String.raw`
   }
 }
 
-@media(max-width:600px){
+@media(max-width:600px){.package-grid{grid-template-columns:1fr 1fr}.package-card strong{font-size:19px}
   .create-campaign-page .create-page-heading h1{font-size:28px}
   .create-campaign-page .create-page-heading p{font-size:12px}
   .create-campaign-page label{font-size:12px}
@@ -1281,5 +1156,6 @@ const PAGE_CSS = String.raw`
   .create-campaign-page .create-type-note b{font-size:13px}
   .create-campaign-page .create-type-note span{font-size:10px}
 }
+
 
 `;

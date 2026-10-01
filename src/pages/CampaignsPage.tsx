@@ -88,19 +88,13 @@ function CampaignCard({ campaign, content }: any) {
         </div>
 
         <div>
-          <b>
-            {Number(campaign.creationCost).toLocaleString()}
-          </b>
-          <span>coins spent</span>
+          <b>₹{Number(campaign.packagePrice || 0).toLocaleString()}</b>
+          <span>package price</span>
         </div>
 
         <div>
-          <b>
-            {Math.round(
-              Number(campaign.coinRewardPerUser || 0)
-            ).toLocaleString()}
-          </b>
-          <span>coins / user</span>
+          <b>{Number(campaign.totalWatchMinutes || 0).toLocaleString()} min</b>
+          <span>total watch time</span>
         </div>
       </div>
 
@@ -113,13 +107,7 @@ function CampaignCard({ campaign, content }: any) {
           {remaining.toLocaleString()} views remaining
         </span>
 
-        <span>
-          ₹
-          {Number(
-            campaign.dollarRewardPerUser || 0
-          ).toFixed(2)}
-          / user
-        </span>
+        <span>{campaign.packageName || "Package"}</span>
       </div>
 
       <small className="campaign-created">
@@ -145,8 +133,8 @@ function CampaignCard({ campaign, content }: any) {
                 <button type="button" className="campaign-confirm-close" onClick={() => !deleting && setConfirmDelete(false)} aria-label="Close"><X size={18}/></button>
                 <div className="campaign-confirm-icon"><AlertTriangle size={22}/></div>
                 <h3>Delete Campaign?</h3>
-                <p>Unused viewer-reward coins will be returned to your wallet.</p>
-                <small>Platform margin will not be refunded.</small>
+                <p>The campaign will be marked PARTIAL COMPLETED and its promoted content will be removed from the feed.</p>
+                <small>Package payment/refund handling is kept separate from campaign view qualification.</small>
                 <div className="campaign-confirm-actions">
                   <button type="button" className="campaign-confirm-cancel" disabled={deleting} onClick={() => setConfirmDelete(false)}>CANCEL</button>
                   <button type="button" className="campaign-confirm-delete" disabled={deleting} onClick={async () => {
@@ -154,7 +142,7 @@ function CampaignCard({ campaign, content }: any) {
                     try {
                       const result = await data.deleteCampaign(campaign.id);
                       setConfirmDelete(false);
-                      setToast({type:"success", message:`${Math.round(Number(result?.refundedCoins || 0)).toLocaleString()} unused coins returned. Campaign marked PARTIAL COMPLETED.`});
+                      setToast({type:"success", message:`Campaign marked PARTIAL COMPLETED. Promoted content removed.`});
                       window.setTimeout(() => setToast(null), 4200);
                     } catch (e: any) {
                       setConfirmDelete(false);
