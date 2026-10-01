@@ -20,10 +20,10 @@ export default function Header(){
         {!isCreator && <div className="top-earnings" aria-label="Earnings">
           <IndianRupee size={15}/><span>{earnings.toFixed(2)}</span>
         </div>}
-        <div className="coin-balance" aria-label="Coins">
+        {!isCreator && <div className="coin-balance" aria-label="Coins">
           <span className="coin-balance-icon"><Coins size={16}/></span>
           <span>{balance.toLocaleString()}</span>
-        </div>
+        </div>}
         <button className="logout-mini" onClick={logout} title="Logout" aria-label="Logout">
           <LogOut size={18}/>
         </button>

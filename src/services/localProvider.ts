@@ -8,10 +8,8 @@ import type {
   ContentType,
   SitePage,
   SitePageSlug,
-  CampaignPackage,
 } from "@/types";
 import { seedDB, defaultSettings } from "@/data/seed";
-import { DEFAULT_CAMPAIGN_PACKAGES, getRequiredWatchSeconds } from "@/services/campaignPackages";
 
 const KEY = "engage_updated_db_v1";
 
@@ -135,7 +133,6 @@ export function getDB(): DB {
     ...db.settings,
   };
   db.milestones = Array.isArray(db.milestones) && db.milestones.length ? db.milestones : (seedDB.milestones || []);
-  db.packages = Array.isArray(db.packages) && db.packages.length ? db.packages : (seedDB.packages || DEFAULT_CAMPAIGN_PACKAGES);
 
   db.campaigns = (db.campaigns || []).map((c: any) => ({
     ...c,
@@ -163,8 +160,6 @@ export function ensureUser(user: User) {
     db.wallets[user.id] = {
       coins: user.role === "creator" ? 5000 : 1000,
       earnings: 0,
-      packageViews: 0,
-      packageWatchMinutes: 0,
     };
   }
 
@@ -199,39 +194,6 @@ export function listCampaigns(userId?: string) {
 }
 
 
-export function updateCampaignPackage(id: string, patch: Partial<CampaignPackage>) {
-  const db = getDB();
-  const pkg = (db.packages || []).find((x: CampaignPackage) => x.id === id);
-  if (!pkg) throw new Error("Package not found.");
-  Object.assign(pkg, patch);
-  db.packages = [...(db.packages || [])].sort((a,b) => Number(a.sortOrder||0)-Number(b.sortOrder||0));
-  saveDB(db);
-  return pkg;
-}
-
-export function purchaseCampaignPackage(input: any) {
-  const db = getDB();
-  const creatorId = String(input.creatorId || "");
-  const pkg = (db.packages || DEFAULT_CAMPAIGN_PACKAGES).find((x: CampaignPackage) => x.id === input.packageId || x.id === String(input.packageId));
-  if (!pkg || !pkg.active) throw new Error("Selected package is unavailable.");
-  const user = db.users.find((u) => u.id === creatorId);
-  if (!user || (user.role !== "creator" && user.role !== "admin" && user.accountType !== "promotion")) throw new Error("Only creator accounts can buy campaign packages.");
-  const wallet: any = db.wallets[creatorId] || { coins: 0, earnings: 0, packageViews: 0, packageWatchMinutes: 0 };
-  wallet.packageViews = Number(wallet.packageViews || 0) + Number(pkg.targetViews || 0);
-  wallet.packageWatchMinutes = Number(wallet.packageWatchMinutes || 0) + Number(pkg.totalWatchMinutes || 0);
-  db.wallets[creatorId] = wallet;
-  const purchases = JSON.parse(localStorage.getItem("engage_package_purchases_v1") || "{}");
-  const row = { id: crypto.randomUUID(), packageId: pkg.id, packageName: pkg.name, priceRupees: pkg.priceRupees, viewsCredited: pkg.targetViews, watchMinutesCredited: pkg.totalWatchMinutes, status: "paid", createdAt: new Date().toISOString() };
-  purchases[creatorId] = [row, ...(purchases[creatorId] || [])].slice(0, 50);
-  localStorage.setItem("engage_package_purchases_v1", JSON.stringify(purchases));
-  addWalletTransaction(creatorId, { id: crypto.randomUUID(), type: "purchase", coins: 0, balanceAfter: wallet.coins, description: `${pkg.name} package purchased: ${pkg.targetViews} views + ${pkg.totalWatchMinutes} watch minutes`, referenceId: row.id, createdAt: row.createdAt });
-  saveDB(db);
-  return row;
-}
-
-export function getCreatorPackagePurchases(userId: string) {
-  try { const all = JSON.parse(localStorage.getItem("engage_package_purchases_v1") || "{}"); return all[userId] || []; } catch { return []; }
-}
 
 export function createCampaign(input: any) {
   const db = getDB();
@@ -240,28 +202,43 @@ export function createCampaign(input: any) {
   if (creator && creator.role !== "admin" && creator.role !== "creator" && creator.accountType !== "promotion") {
     throw new Error("Only creator/promotion accounts can create campaigns.");
   }
+
   const requestId = String(input.creationRequestId || crypto.randomUUID());
   const existing = db.campaigns.find((campaign) => campaign.creationRequestId === requestId);
   if (existing) return existing;
+
   const targetViews = Math.floor(Number(input.targetViews || 0));
-  const watchMinutes = Number(input.watchMinutes || 0);
-  const wallet: any = db.wallets[creatorId] || { coins: 0, earnings: 0, packageViews: 0, packageWatchMinutes: 0 };
+  const watchSeconds = Math.max(1, Math.floor(Number(input.watchSeconds || 0)));
+  const pricePerView = Math.max(0, Number(db.settings.campaignPricePerView || 0));
+  const pricePerSecond = Math.max(0, Number(db.settings.campaignPricePerSecond || 0));
+  const viewOptions = (db.settings.campaignViewOptions || []).map(Number).filter((v) => Number.isFinite(v) && v > 0);
+  const watchOptions = (db.settings.campaignWatchSecondOptions || []).map(Number).filter((v) => Number.isFinite(v) && v > 0);
+  const campaignCost = targetViews * pricePerView + targetViews * watchSeconds * pricePerSecond;
+
   if (targetViews < 1) throw new Error("Enter at least 1 view.");
-  if (watchMinutes <= 0) throw new Error("Enter a valid watch-time requirement.");
-  if (Number(wallet.packageViews || 0) < targetViews) throw new Error(`Insufficient package view balance. Available: ${Number(wallet.packageViews || 0).toLocaleString()} views.`);
-  if (Number(wallet.packageWatchMinutes || 0) < watchMinutes) throw new Error(`Insufficient package watch-time balance. Available: ${Number(wallet.packageWatchMinutes || 0)} minutes.`);
-  const requiredWatchSeconds = Math.max(1, Math.ceil((watchMinutes * 60) / targetViews));
-  if (input.type === "shorts" && requiredWatchSeconds >= 60) throw new Error("This campaign requires 60 seconds or more per Short view and cannot be used for Shorts.");
-  wallet.packageViews = Number(wallet.packageViews || 0) - targetViews;
-  wallet.packageWatchMinutes = Number(wallet.packageWatchMinutes || 0) - watchMinutes;
-  db.wallets[creatorId] = wallet;
+  if (watchSeconds < 1) throw new Error("Enter watch time per user.");
+  if (viewOptions.length && !viewOptions.includes(targetViews)) throw new Error("Select a valid number of views from the Admin options.");
+  if (watchOptions.length && !watchOptions.includes(watchSeconds)) throw new Error("Select a valid watch time from the Admin options.");
+  if (campaignCost <= 0) throw new Error("Campaign pricing is not configured by admin yet.");
+  if (input.type === "shorts" && watchSeconds >= 60) throw new Error("Shorts campaigns need less than 60 seconds per view.");
+
   const campaign: Campaign = {
-    id: crypto.randomUUID(), creatorId, packageId: "balance", packageName: "Package Balance", packagePrice: 0,
-    title: input.title, type: input.type, contentId: input.contentId || "", targetViews, totalWatchMinutes: watchMinutes,
-    requiredWatchSeconds, currentViews: 0, qualifiedUsers: 0, status: "active", createdAt: new Date().toISOString(), creationRequestId: requestId,
+    id: crypto.randomUUID(),
+    creatorId,
+    campaignCost,
+    title: input.title,
+    type: input.type,
+    contentId: input.contentId || "",
+    targetViews,
+    totalWatchMinutes: Number((targetViews * watchSeconds / 60).toFixed(2)),
+    requiredWatchSeconds: watchSeconds,
+    currentViews: 0,
+    qualifiedUsers: 0,
+    status: "active",
+    createdAt: new Date().toISOString(),
+    creationRequestId: requestId,
   };
   db.campaigns.unshift(campaign);
-  addWalletTransaction(creatorId, { id: crypto.randomUUID(), type: "spend", coins: 0, balanceAfter: wallet.coins, description: `Campaign balance used: ${targetViews} views + ${watchMinutes} watch minutes`, referenceId: campaign.id, createdAt: new Date().toISOString() });
   saveDB(db);
   return campaign;
 }

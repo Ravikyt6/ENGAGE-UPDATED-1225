@@ -1,4 +1,4 @@
-import type { Content, DB, Settings, SitePage, SitePageSlug, User, MilestoneConfig, CampaignPackage } from "@/types";
+import type { Content, DB, Settings, SitePage, SitePageSlug, User, MilestoneConfig } from "@/types";
 import * as local from "./localProvider";
 import * as remote from "./supabaseProvider";
 
@@ -42,10 +42,6 @@ export const dataProvider = {
     return db.campaigns.filter((c) => !id || c.creatorId === id);
   },
 
-  purchaseCampaignPackage(input: any) {
-    if (isSupabaseMode()) return remote.purchaseCampaignPackage(input);
-    return Promise.resolve(local.purchaseCampaignPackage(input));
-  },
 
   createCampaign(input: any) {
     if (isSupabaseMode()) {
@@ -54,20 +50,12 @@ export const dataProvider = {
     return Promise.resolve(local.createCampaign(input));
   },
 
-  getCreatorPackagePurchases(userId: string) {
-    if (isSupabaseMode()) return remote.getCreatorPackagePurchases(userId);
-    return Promise.resolve(local.getCreatorPackagePurchases(userId));
-  },
 
   deleteCampaign(campaignId: string, creatorId: string) {
     if (isSupabaseMode()) return remote.deleteCampaign(campaignId, creatorId);
     return Promise.resolve(local.deleteCampaign(campaignId, creatorId));
   },
 
-  updateCampaignPackage(id: string, patch: Partial<CampaignPackage>) {
-    if (isSupabaseMode()) return remote.updateCampaignPackage(id, patch);
-    return Promise.resolve(local.updateCampaignPackage(id, patch));
-  },
 
   updateMilestones(milestones: MilestoneConfig[]) {
     if (isSupabaseMode()) return remote.updateMilestones(milestones);
@@ -164,7 +152,7 @@ export const dataProvider = {
           .filter((x: any) => x.type === "earning")
           .reduce((a: number, x: any) => a + Number(x.coins || 0), 0),
         campaignSpend: campaigns.reduce(
-          (a, c) => a + Number(c.packagePrice || 0),
+          (a, c) => a + Number(c.campaignCost || 0),
           0,
         ),
         refunded,
@@ -199,7 +187,7 @@ export const dataProvider = {
           c => (c.status as string) === "cancelled"
         ).length,
         coinsSpent: campaigns.reduce(
-          (a, c) => a + Number(c.packagePrice || 0),
+          (a, c) => a + Number(c.campaignCost || 0),
           0,
         ),
         targetUsers: campaigns.reduce(
@@ -249,7 +237,7 @@ export const dataProvider = {
           target_users: c.targetViews,
           required_watch_seconds: c.requiredWatchSeconds,
           reward_per_user: 0,
-          campaign_cost: c.packagePrice,
+          campaign_cost: c.campaignCost,
           completed_users: c.qualifiedUsers,
           status: c.status,
           created_at: c.createdAt,

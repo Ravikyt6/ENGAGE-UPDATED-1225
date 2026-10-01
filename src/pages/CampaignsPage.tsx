@@ -88,7 +88,7 @@ function CampaignCard({ campaign, content }: any) {
         </div>
 
         <div>
-          <b>₹{Number(campaign.packagePrice || 0).toLocaleString()}</b>
+          <b>₹{Number(campaign.campaignCost || 0).toFixed(2)}</b>
           <span>package price</span>
         </div>
 
@@ -107,7 +107,7 @@ function CampaignCard({ campaign, content }: any) {
           {remaining.toLocaleString()} views remaining
         </span>
 
-        <span>{campaign.packageName || "Package"}</span>
+        <span>CAMPAIGN COST</span>
       </div>
 
       <small className="campaign-created">

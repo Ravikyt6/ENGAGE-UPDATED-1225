@@ -1,4 +1,4 @@
-import type { DB, User, Content, Campaign, Settings, SitePage, SitePageSlug, MilestoneConfig, CampaignPackage } from "@/types";
+import type { DB, User, Content, Campaign, Settings, SitePage, SitePageSlug , MilestoneConfig } from "@/types";
 import { supabase } from "./supabase";
 import { seedDB, defaultSettings } from "@/data/seed";
 
@@ -10,7 +10,6 @@ let remoteCache: DB = {
   wallets: {},
   settings: defaultSettings,
   milestones: [],
-  packages: [],
 };
 
 export function isLiveMode() {
@@ -29,27 +28,23 @@ function requireSupabase() {
 export async function loadDB(): Promise<DB> {
   const sb = requireSupabase();
 
-  const [profiles, wallets, packageWallets, contents, campaigns, settings, milestones, packages] =
+  const [profiles, wallets, contents, campaigns, settings, milestones] =
     await Promise.all([
       sb.from("profiles").select("*").order("created_at", { ascending: false }),
       sb.from("wallets").select("*"),
-      sb.from("creator_package_wallets").select("*"),
       sb.from("contents").select("*").order("created_at", { ascending: false }),
       sb.from("campaigns").select("*").order("created_at", { ascending: false }),
       sb.from("app_settings").select("*").eq("id", 1).maybeSingle(),
       sb.from("milestone_configs").select("*").eq("active", true).order("views", { ascending: true }),
-      sb.from("campaign_packages").select("*").eq("active", true).order("sort_order", { ascending: true }),
     ]);
 
   const error =
     profiles.error ||
     wallets.error ||
-    packageWallets.error ||
     contents.error ||
     campaigns.error ||
     settings.error ||
-    milestones.error ||
-    packages.error;
+    milestones.error;
 
   if (error) throw error;
 
@@ -78,9 +73,7 @@ export async function loadDB(): Promise<DB> {
     })),
     campaigns: (campaigns.data || []).map((c: any) => ({
       id: c.id,
-      packageId: c.package_id || "",
-      packageName: c.package_name || "Custom",
-      packagePrice: Number(c.package_price || 0),
+      campaignCost: Number(c.campaign_cost || 0),
       totalWatchMinutes: Number(c.total_watch_minutes || 0),
       creatorId: c.creator_id,
       title: c.title,
@@ -95,12 +88,8 @@ export async function loadDB(): Promise<DB> {
       creationRequestId: c.creation_request_id || undefined,
     })),
     wallets: Object.fromEntries(
-      (wallets.data || []).map((w: any) => {
-        const pw = (packageWallets.data || []).find((x: any) => x.creator_id === w.user_id);
-        return [w.user_id, { coins: Number(w.coins || 0), earnings: Number(w.earnings || 0), packageViews: Number(pw?.available_views || 0), packageWatchMinutes: Number(pw?.available_watch_minutes || 0) }];
-      })
+      (wallets.data || []).map((w: any) => [w.user_id, { coins: Number(w.coins || 0), earnings: Number(w.earnings || 0) }])
     ),
-    packages: (packages.data || []).map((p: any): CampaignPackage => ({ id: p.id, name: p.name, priceRupees: Number(p.price_rupees), targetViews: Number(p.target_views), totalWatchMinutes: Number(p.total_watch_minutes), active: p.active !== false, sortOrder: Number(p.sort_order || 0) })),
     settings: {
       ...defaultSettings,
       ...(settings.data || {}),
@@ -143,6 +132,18 @@ export async function loadDB(): Promise<DB> {
       viewerRewardUsdPerCoin: Number(
         settings.data?.viewer_reward_usd_per_coin ?? 0.0002
       ),
+      campaignPricePerView: Number(
+        settings.data?.campaign_price_per_view ?? defaultSettings.campaignPricePerView
+      ),
+      campaignPricePerSecond: Number(
+        settings.data?.campaign_price_per_second ?? defaultSettings.campaignPricePerSecond
+      ),
+      campaignViewOptions: Array.isArray(settings.data?.campaign_view_options) && settings.data.campaign_view_options.length
+        ? settings.data.campaign_view_options.map((v: any) => Number(v)).filter((v: number) => Number.isFinite(v) && v > 0)
+        : defaultSettings.campaignViewOptions,
+      campaignWatchSecondOptions: Array.isArray(settings.data?.campaign_watch_second_options) && settings.data.campaign_watch_second_options.length
+        ? settings.data.campaign_watch_second_options.map((v: any) => Number(v)).filter((v: number) => Number.isFinite(v) && v > 0)
+        : defaultSettings.campaignWatchSecondOptions,
     },
     milestones: (milestones.data || []).map((m: any) => ({ id: m.id, views: Number(m.views), rewardRupees: Number(m.reward_rupees), sortOrder: Number(m.sort_order || 0), active: m.active !== false })),
   };
@@ -234,45 +235,18 @@ export async function addContent(
   } as Content;
 }
 
-export async function updateCampaignPackage(id: string, patch: any) {
-  const sb = requireSupabase();
-  const payload: any = {};
-  if (patch.name !== undefined) payload.name = String(patch.name).trim();
-  if (patch.priceRupees !== undefined) payload.price_rupees = Number(patch.priceRupees);
-  if (patch.targetViews !== undefined) payload.target_views = Number(patch.targetViews);
-  if (patch.totalWatchMinutes !== undefined) payload.total_watch_minutes = Number(patch.totalWatchMinutes);
-  if (patch.active !== undefined) payload.active = Boolean(patch.active);
-  if (patch.sortOrder !== undefined) payload.sort_order = Number(patch.sortOrder);
-  payload.updated_at = new Date().toISOString();
-  const { data, error } = await sb.from("campaign_packages").update(payload).eq("id", id).select("*").single();
-  if (error) throw error;
-  await loadDB();
-  return data;
-}
-
-export async function purchaseCampaignPackage(input: any) {
-  const sb = requireSupabase();
-  throw new Error("Package payment is not connected yet. Connect the payment-success callback to the package credit RPC before enabling package purchases in Supabase mode.");
-}
-
-export async function getCreatorPackagePurchases(userId: string) {
-  const sb = requireSupabase();
-  const { data, error } = await sb.from("creator_package_purchases").select("id,package_id,package_name,price_rupees,views_credited,watch_minutes_credited,status,created_at").eq("creator_id", userId).order("created_at", { ascending: false }).limit(50);
-  if (error) throw error;
-  return data || [];
-}
 
 export async function createCampaign(input: any) {
   const sb = requireSupabase();
   const requestId = String(input.creationRequestId || crypto.randomUUID());
-  const { data, error } = await sb.rpc("create_campaign_from_package_balance", {
+  const { data, error } = await sb.rpc("create_campaign_with_pricing", {
     p_creation_request_id: requestId,
     p_creator_id: input.creatorId,
     p_content_id: input.contentId || null,
     p_title: input.title,
     p_type: input.type,
     p_target_views: Math.floor(Number(input.targetViews || 0)),
-    p_watch_minutes: Number(input.watchMinutes || 0),
+    p_watch_seconds: Math.floor(Number(input.watchSeconds || 0)),
   });
   if (error) throw error;
   await loadDB();
@@ -508,6 +482,10 @@ export async function updateSettings(
       show_ad_on_end: patch.showAdOnEnd,
       min_short_seconds: patch.minShortSeconds,
       max_short_seconds: patch.maxShortSeconds,
+      campaign_price_per_view: patch.campaignPricePerView,
+      campaign_price_per_second: patch.campaignPricePerSecond,
+      campaign_view_options: patch.campaignViewOptions,
+      campaign_watch_second_options: patch.campaignWatchSecondOptions,
       updated_at: new Date().toISOString(),
     })
     .eq("id", 1);

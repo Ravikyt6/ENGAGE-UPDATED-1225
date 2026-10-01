@@ -3,7 +3,6 @@ import AdminDashboard from "@/admin/AdminDashboard";
 import AdminLayout from "@/admin/AdminLayout";
 import AdminSettings from "@/admin/AdminSettings";
 import AdminMilestones from "@/admin/AdminMilestones";
-import AdminPackages from "@/admin/AdminPackages";
 import AdminUsers from "@/admin/AdminUsers";
 import AdminWithdrawals from "@/admin/AdminWithdrawals";
 import Protected from "@/components/Protected";
@@ -46,6 +45,11 @@ function AdminOnly({ children }: { children: React.ReactNode }) {
     <Navigate to="/video" replace />
   );
 }
+function AppDataProvider({ children }: { children: React.ReactNode }) {
+  const { user } = useAuth();
+  return <DataProvider user={user}>{children}</DataProvider>;
+}
+
 function SocialBarController() {
   const { adminSettings } = useData();
 
@@ -183,7 +187,6 @@ function RoutesView() {
         </Route>
         <Route path="withdrawals" element={<AdminWithdrawals />} />
         <Route path="milestones" element={<AdminMilestones />} />
-        <Route path="packages" element={<AdminPackages />} />
         <Route path="settings" element={<AdminSettings />} />
       </Route>
       <Route path="*" element={<Navigate to="/video" replace />} />
@@ -196,10 +199,10 @@ export default function App() {
     <BrowserRouter>
       <style>{GLOBAL_CSS}</style>
       <AuthProvider>
-        <DataProvider>
+        <AppDataProvider>
           <SocialBarController />
           <RoutesView />
-        </DataProvider>
+        </AppDataProvider>
       </AuthProvider>
     </BrowserRouter>
   );
