@@ -1,0 +1,7 @@
+ENGAGE Vercel Build Fix - VERIFIED
+
+Removed:
+src/admin/AdminPackages.tsx
+src/services/campaignPackages.ts
+
+Verified: no CampaignPackage / campaignPackages / db.packages references remain in source.

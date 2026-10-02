@@ -1153,7 +1153,7 @@ const PAGE_CSS = String.raw`
   }
 }
 
-@media(max-width:600px){.package-grid{grid-template-columns:1fr 1fr}.package-card strong{font-size:19px}
+@media(max-width:600px){
   .create-campaign-page .create-page-heading h1{font-size:28px}
   .create-campaign-page .create-page-heading p{font-size:12px}
   .create-campaign-page label{font-size:12px}

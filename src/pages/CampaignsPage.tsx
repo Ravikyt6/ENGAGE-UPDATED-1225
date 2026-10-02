@@ -89,7 +89,7 @@ function CampaignCard({ campaign, content }: any) {
 
         <div>
           <b>₹{Number(campaign.campaignCost || 0).toFixed(2)}</b>
-          <span>package price</span>
+          <span>campaign cost</span>
         </div>
 
         <div>
@@ -134,7 +134,7 @@ function CampaignCard({ campaign, content }: any) {
                 <div className="campaign-confirm-icon"><AlertTriangle size={22}/></div>
                 <h3>Delete Campaign?</h3>
                 <p>The campaign will be marked PARTIAL COMPLETED and its promoted content will be removed from the feed.</p>
-                <small>Package payment/refund handling is kept separate from campaign view qualification.</small>
+                <small>Campaign pricing is calculated from the selected views and watch time.</small>
                 <div className="campaign-confirm-actions">
                   <button type="button" className="campaign-confirm-cancel" disabled={deleting} onClick={() => setConfirmDelete(false)}>CANCEL</button>
                   <button type="button" className="campaign-confirm-delete" disabled={deleting} onClick={async () => {

@@ -209,8 +209,8 @@ function CreatorWalletPage() {
         <section className="creator-wallet-note-card">
           <CheckCircle2 size={20}/>
           <div>
-            <b>No package wallet</b>
-            <span>Campaign packages, package balances, creator earnings, withdrawals and payout controls have been removed. Campaign cost is calculated automatically from Admin pricing when you create a campaign.</span>
+            <b>Admin-controlled campaign pricing</b>
+            <span>Campaign cost is calculated automatically from the selected views and watch time using the current Admin pricing.</span>
           </div>
         </section>
         <Link to="/create-campaign" className="creator-create-campaign-link">

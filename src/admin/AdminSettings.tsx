@@ -110,7 +110,7 @@ export default function AdminSettings() {
       <div className="admin-head settings-page-head">
         <div>
           <h1>Settings</h1>
-          <p>Manage packages, advertisements, autoplay and application storage.</p>
+          <p>Manage campaign pricing, advertisements, autoplay and application storage.</p>
         </div>
       </div>
 
