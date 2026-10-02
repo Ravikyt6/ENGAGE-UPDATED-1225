@@ -3,7 +3,7 @@ import Layout from "@/components/Layout";
 import { Link } from "react-router-dom";
 import { useAuth } from "@/context/AuthContext";
 import { useData } from "@/context/DataContext";
-import { AlertTriangle, ArrowRight, CheckCircle2, Megaphone, Plus, Target, Users, Trash2, X } from "lucide-react";
+import { AlertTriangle, CheckCircle2, Trash2, X } from "lucide-react";
 
 function CampaignCard({ campaign, content }: any) {
   const data = useData();
@@ -163,43 +163,45 @@ function CampaignCard({ campaign, content }: any) {
   );
 }
 
-function MyCampaigns() {
+function MyCampaigns({ tab }: { tab: "active" | "closed" }) {
   const { user } = useAuth();
   const data = useData();
 
   const campaigns = user
-    ? data.campaigns.filter(
-        (c: any) => c.creatorId === user.id
-      )
+    ? data.campaigns.filter((c: any) => c.creatorId === user.id)
     : [];
 
-  const totalViews = campaigns.reduce(
-    (sum: number, c: any) =>
-      sum + Number(c.currentViews || 0),
+  const isClosedCampaign = (campaign: any) =>
+    campaign.status === "completed" || campaign.status === "partial_completed";
+
+  const visibleCampaigns = campaigns.filter((campaign: any) =>
+    tab === "closed" ? isClosedCampaign(campaign) : !isClosedCampaign(campaign)
+  );
+
+  const totalViews = visibleCampaigns.reduce(
+    (sum: number, c: any) => sum + Number(c.currentViews || 0),
     0
   );
 
-  const targetViews = campaigns.reduce(
-    (sum: number, c: any) =>
-      sum + Number(c.targetViews || 0),
+  const targetViews = visibleCampaigns.reduce(
+    (sum: number, c: any) => sum + Number(c.targetViews || 0),
     0
   );
 
-  const active = campaigns.filter(
-    (c: any) => c.status === "active"
-  ).length;
+  const activeCount = campaigns.filter((c: any) => !isClosedCampaign(c)).length;
+  const closedCount = campaigns.filter(isClosedCampaign).length;
 
   return (
     <>
       <div className="campaign-summary">
         <div>
-          <span>MY CAMPAIGNS</span>
-          <b>{campaigns.length}</b>
+          <span>ACTIVE CAMPAIGNS</span>
+          <b>{activeCount}</b>
         </div>
 
         <div>
-          <span>ACTIVE</span>
-          <b>{active}</b>
+          <span>CLOSED CAMPAIGNS</span>
+          <b>{closedCount}</b>
         </div>
 
         <div>
@@ -213,14 +215,12 @@ function MyCampaigns() {
         </div>
       </div>
 
-      {campaigns.length > 0 ? (
+      {visibleCampaigns.length > 0 ? (
         <div className="campaign-list">
-          {campaigns.map((campaign: any) => {
-            const content =
-              data.contents.find(
-                (x: any) =>
-                  x.id === campaign.contentId
-              );
+          {visibleCampaigns.map((campaign: any) => {
+            const content = data.contents.find(
+              (x: any) => x.id === campaign.contentId
+            );
 
             return (
               <CampaignCard
@@ -232,16 +232,16 @@ function MyCampaigns() {
           })}
         </div>
       ) : (
-        <div className="empty-card">
-          <div className="empty-icon">📢</div>
-
-          <h3>No campaigns yet</h3>
-
+        <div className="empty-card campaign-tab-empty">
+          <div className="empty-icon">{tab === "closed" ? "✓" : "📢"}</div>
+          <h3>
+            {tab === "closed" ? "No closed campaigns" : "No active campaigns"}
+          </h3>
           <p>
-            Create your first campaign and start
-            getting real viewers.
+            {tab === "closed"
+              ? "Completed and partially completed campaigns will appear here."
+              : "Your active campaigns will appear here."}
           </p>
-
         </div>
       )}
     </>
@@ -257,98 +257,47 @@ export default function CampaignsPage() {
     return () => style.remove();
   }, []);
 
-  const [tab, setTab] = useState<"mine" | "create">("mine");
+  const [tab, setTab] = useState<"active" | "closed">("active");
 
   return (
     <Layout>
       <div className="content-head">
         <div>
           <h1>Campaigns</h1>
-
-          <p>
-            Create campaigns and track your promotion
-            performance.
-          </p>
+          <p>Create campaigns and track your promotion performance.</p>
         </div>
-
       </div>
 
-      <div className="campaign-tabs">
+      <div className="campaign-tabs" role="tablist" aria-label="Campaign status">
         <button
-          className={tab === "mine" ? "active" : ""}
-          onClick={() => setTab("mine")}
+          type="button"
+          role="tab"
+          aria-selected={tab === "active"}
+          className={tab === "active" ? "active" : ""}
+          onClick={() => setTab("active")}
         >
-          MY CAMPAIGNS
+          ACTIVE CAMPAIGN
         </button>
 
         <button
-          className={tab === "create" ? "active" : ""}
-          onClick={() => setTab("create")}
+          type="button"
+          role="tab"
+          aria-selected={tab === "closed"}
+          className={tab === "closed" ? "active" : ""}
+          onClick={() => setTab("closed")}
         >
-          CREATE CAMPAIGN
+          CLOSED CAMPAIGN
         </button>
       </div>
 
-      {tab === "mine" ? (
-        <MyCampaigns />
-      ) : (
-        <div className="campaign-create-intro">
-          <div className="campaign-create-icon"><Megaphone size={26}/></div>
-          <h2>Create a new campaign</h2>
-          <p>Promote your YouTube videos, Shorts or Live content and reach qualified viewers.</p>
-
-          <div className="campaign-create-features">
-            <div className="campaign-create-feature">
-              <span className="campaign-feature-icon"><Target size={17}/></span>
-              <span>Set your target</span>
-            </div>
-            <div className="campaign-create-feature">
-              <span className="campaign-feature-icon"><Users size={17}/></span>
-              <span>Reach viewers</span>
-            </div>
-            <div className="campaign-create-feature">
-              <span className="campaign-feature-icon"><Plus size={17}/></span>
-              <span>Track progress</span>
-            </div>
-          </div>
-
-          <Link className="campaign-open-create" to="/create-campaign">
-            <span>OPEN CREATE CAMPAIGN</span>
-            <ArrowRight size={17}/>
-          </Link>
-        </div>
-      )}
+      <MyCampaigns tab={tab} />
     </Layout>
   );
 }
 
-function CreateCampaignInline() {
-  // Keep the exact existing Create Campaign UI and logic
-  // while displaying it inside the Campaigns section.
-  return (
-    <div className="create-embedded">
-      <iframe
-        title="Create Campaign"
-        src="/create-campaign"
-        style={{
-          width: "100%",
-          minHeight: "780px",
-          border: 0,
-          background: "transparent",
-        }}
-      />
-    </div>
-  );
-}
 
 /* ===== CAMPAIGNSPAGE CSS — kept inside this file ===== */
 const PAGE_CSS = String.raw`
-.compact{
-  padding: 9px 10px !important;
-  font-size: 11px;
-  text-decoration: none;
-}
-
 .campaign-card,
 .my-campaign{
   border: 1px solid #e7e7e7;
@@ -409,20 +358,6 @@ const PAGE_CSS = String.raw`
   background: #fff;
 }
 
-.empty-card a{
-  color: #FF0000;
-}
-
-.empty-card a.primary{
-  color:#fff !important;
-  display:inline-flex;
-  align-items:center;
-  justify-content:center;
-  min-width:170px;
-  min-height:44px;
-  text-decoration:none;
-}
-
 .campaign-tabs{
   display: flex;
   gap: 6px;
@@ -448,6 +383,9 @@ const PAGE_CSS = String.raw`
   background: #fff;
   color: #e63232;
   box-shadow: 0 2px 7px rgba(0, 0, 0, 0.08);
+}
+.campaign-tab-empty{
+  min-height: 260px;
 }
 
 .campaign-summary{
@@ -608,13 +546,6 @@ const PAGE_CSS = String.raw`
   margin: 3px 0 11px;
 }
 
-.create-embedded-link{
-  background: #fff;
-  border: 1px solid #eee;
-  border-radius: 11px;
-  padding: 15px;
-}
-
 @media (max-width: 600px){.campaign-summary{
     grid-template-columns: repeat(2, 1fr);
   }
@@ -629,22 +560,12 @@ const PAGE_CSS = String.raw`
     height: 52px;
   }}
 
-/* ===== CAMPAIGN UI UPDATE ===== */
-.campaign-create-intro{min-height:360px;padding:30px 22px;display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;border:1px solid #e9e9e9;border-radius:16px;background:linear-gradient(180deg,#fff,#fffafa);box-shadow:0 8px 24px rgba(0,0,0,.04)}
-.campaign-create-icon{width:64px;height:64px;border-radius:18px;display:grid;place-items:center;background:#fff0f0;color:#FF0000;margin-bottom:13px;flex:none}
-.campaign-create-intro h2{margin:0;color:#222;font-size:21px;line-height:1.2;font-weight:950}
-.campaign-create-intro p{max-width:520px;margin:8px 0 20px;color:#777;font-size:12px;line-height:1.55}
-.campaign-create-features{display:flex;flex-direction:column;gap:8px;width:min(520px,100%);margin:0 0 22px}
-.campaign-create-feature{width:100%;min-height:48px;box-sizing:border-box;display:flex;align-items:center;justify-content:flex-start;gap:10px;padding:0 15px;border:1px solid #ececec;border-radius:11px;background:#fff;color:#555;font-size:10px;font-weight:900;text-align:left;box-shadow:0 2px 7px rgba(0,0,0,.025)}
-.campaign-feature-icon{width:28px;height:28px;display:grid;place-items:center;flex:none;border-radius:8px;background:#fff0f0;color:#FF0000}
-.campaign-create-feature svg{color:#FF0000}
-.campaign-open-create{width:min(300px,100%);min-height:50px;box-sizing:border-box;display:flex;align-items:center;justify-content:center;gap:9px;border-radius:10px;background:#FF0000;color:#fff !important;text-decoration:none;font-size:11px;font-weight:950;box-shadow:0 7px 16px rgba(237,52,52,.16);transition:transform .15s ease,background .15s ease}
-.campaign-open-create:hover{background:#d92d2d;transform:translateY(-1px)}
-.empty-card{min-height:300px;display:flex;flex-direction:column;align-items:center;justify-content:center}
-.empty-card .empty-icon{width:58px;height:58px;display:grid;place-items:center;border-radius:16px;background:#fff0f0;font-size:25px;margin-bottom:9px}
-.empty-card h3{margin:0;color:#333;font-size:18px}
-.empty-card p{max-width:360px;line-height:1.5}
-@media(max-width:700px){.campaign-summary{grid-template-columns:repeat(2,1fr)}.campaign-create-intro{min-height:390px;padding:28px 15px}.campaign-create-features{width:100%;max-width:360px}.campaign-create-feature{min-height:50px}.campaign-open-create{width:min(300px,100%)}}
+@media(max-width:700px){
+  .campaign-summary{grid-template-columns:repeat(2,1fr)}
+  .campaign-tabs{gap:5px;margin-bottom:12px}
+  .campaign-tabs button{min-height:44px;padding:10px 6px;font-size:9px;white-space:nowrap}
+  .campaign-tab-empty{min-height:240px}
+}
 
 /* Creator campaign mobile readability polish */
 @media(max-width:600px){
